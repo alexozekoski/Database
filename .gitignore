@@ -1,0 +1,7 @@
+build/
+nbproject/
+store/
+test/
+build.xml
+teste.db
+/dist/
