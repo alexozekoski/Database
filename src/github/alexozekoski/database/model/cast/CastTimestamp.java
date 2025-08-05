@@ -18,7 +18,6 @@ import java.util.List;
  */
 public class CastTimestamp extends CastPrimitive {
 
-
     @Override
     public Object sqlToField(Model model, List<Model> stack, Field field, Class fieldType, Object sqlvalue) throws Exception {
         return CastUtil.toTimestamp(sqlvalue);
@@ -26,7 +25,7 @@ public class CastTimestamp extends CastPrimitive {
 
     @Override
     public JsonElement fieldToJson(Model model, Field field, Class fieldType, Object obValue) throws Exception {
-        return CastUtil.toJson((Timestamp)obValue);
+        return CastUtil.toJson((Timestamp) obValue);
     }
 
     @Override
