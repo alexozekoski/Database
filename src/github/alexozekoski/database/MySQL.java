@@ -7,7 +7,6 @@ package github.alexozekoski.database;
 
 import com.google.gson.JsonObject;
 import github.alexozekoski.database.migration.MigrationType;
-import github.alexozekoski.database.migration.MySQLMigration;
 
 /**
  *
@@ -19,7 +18,7 @@ public class MySQL extends Database {
 
     public static final String NAME = "MySQL";
 
-    public static final MigrationType MIGRATION_TYPE = new MySQLMigration();
+    public static final MigrationType MIGRATION_TYPE = null;
 
     public MySQL(JsonObject json) {
         super(json);

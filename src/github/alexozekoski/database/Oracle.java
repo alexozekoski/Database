@@ -7,7 +7,6 @@ package github.alexozekoski.database;
 
 import com.google.gson.JsonObject;
 import github.alexozekoski.database.migration.MigrationType;
-import github.alexozekoski.database.migration.OracleMigration;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -22,7 +21,7 @@ public class Oracle extends Database {
 
     public static final String NAME = "Oracle";
 
-    public static final MigrationType MIGRATION_TYPE = new OracleMigration();
+    public static final MigrationType MIGRATION_TYPE = null;
 
     public Oracle(JsonObject json) {
         super(json);

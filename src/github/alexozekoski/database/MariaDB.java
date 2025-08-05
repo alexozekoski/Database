@@ -6,7 +6,6 @@
 package github.alexozekoski.database;
 
 import com.google.gson.JsonObject;
-import github.alexozekoski.database.migration.MariaDBMigration;
 import github.alexozekoski.database.migration.MigrationType;
 
 /**
@@ -19,7 +18,7 @@ public class MariaDB extends Database {
 
     public static final String NAME = "MariaDB";
 
-    public static final MigrationType MIGRATION_TYPE = new MariaDBMigration();
+    public static final MigrationType MIGRATION_TYPE = null;
 
     public MariaDB(JsonObject json) {
         super(json);
