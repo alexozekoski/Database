@@ -932,6 +932,7 @@ public abstract class Database {
             try {
                 resultSet = stmt.executeQuery();
             } catch (SQLException e) {
+                System.out.println(query);
                 if (savepoint != null) {
                     getConnection().rollback(savepoint);
                 }
@@ -997,7 +998,6 @@ public abstract class Database {
                 if (savepoint != null) {
                     getConnection().rollback(savepoint);
                 }
-
                 stmt.close();
                 throw e;
             }

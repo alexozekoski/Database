@@ -366,7 +366,7 @@ public class Query<T extends Query> {
     }
 
     public T where(String prefix, String column, String operator, Object value, boolean raw, boolean hasValue) {
-        if (value != null && value.getClass().isArray() && Array.getLength(value) == 0) {
+        if (value != null && value.getClass().isArray() && Array.getLength(value) == 0 && !raw) {
             return (T) this;
         }
         if (value instanceof List && ((List) value).isEmpty()) {
@@ -376,6 +376,7 @@ public class Query<T extends Query> {
             firstWhere = false;
             prefix = null;
         }
+
         clauses.add(new Where(prefix, column, operator, value, raw, table, getDatabase().getMigrationType(), hasValue, whereLevel));
         return (T) this;
     }
@@ -688,6 +689,11 @@ public class Query<T extends Query> {
 
     public void clearSets() {
         remove(Set.class, clauses);
+    }
+
+    public void clearWhere() {
+        firstWhere = true;
+        remove(Where.class, clauses);
     }
 
     public void tryExecuteInsert(DatabaseResultset callback) throws SQLException, Exception {

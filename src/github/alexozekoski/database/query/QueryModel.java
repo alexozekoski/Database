@@ -104,6 +104,11 @@ public class QueryModel<M extends Model<M>> extends Query<QueryModel<M>> {
         where("id", id);
         return first();
     }
+    
+     public M tryGet(Long id) throws IllegalArgumentException, SQLException, Exception {
+        where("id", id);
+        return tryFirst();
+    }
 
     public M first() {
         ModelList<M> list = limit(1).get();
