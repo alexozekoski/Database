@@ -170,6 +170,20 @@ public class Model<T extends Model<T>> {
         return ModelUtil.getNormalColumns(getClass());
     }
 
+    public T set(JsonObject json, String ... fields) {
+        if(fields == null || fields.length == 0){
+            return set(json);
+        }else{
+            JsonObject values = new JsonObject();
+            for (String f : fields) {
+                if(json.has(f)){
+                    values.add(f, json.get(f));
+                }
+            }
+            return set(values);
+        }
+    }
+    
     public T set(JsonObject json) {
         return set(json, false, false, false, true);
     }
