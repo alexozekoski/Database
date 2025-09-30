@@ -108,4 +108,25 @@ public class ModelSerial<T extends ModelSerial<T>> extends Model<T> implements S
     public boolean equalsMemoryReference(Object obj) {
         return super.equals(obj);
     }
+
+    @Override
+    public boolean tryUpdate(String... columns) throws Exception {
+        String[] vcols = columns;
+        if (columns != null && columns.length > 0) {
+            boolean hasUpdateCol = false;
+            for (String col : columns) {
+                if ("updated".equals(col)) {
+                    hasUpdateCol = true;
+                    break;
+                }
+            }
+            if (!hasUpdateCol) {
+                vcols = new String[columns.length + 1];
+                System.arraycopy(columns, 0, vcols, 0, columns.length);
+                vcols[columns.length] = "updated";
+            }
+        }
+        return super.tryUpdate(vcols);
+    }
+
 }
