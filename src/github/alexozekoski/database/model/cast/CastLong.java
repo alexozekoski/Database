@@ -9,6 +9,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonPrimitive;
 import github.alexozekoski.database.Database;
+import github.alexozekoski.database.Log;
 import github.alexozekoski.database.model.Model;
 import java.lang.reflect.Field;
 import java.util.List;
@@ -38,7 +39,7 @@ public class CastLong extends CastPrimitive {
 
     @Override
     public JsonElement fieldToJson(Model model, Field field, Class fieldType, Object obValue) throws Exception {
-        return obValue == null ? JsonNull.INSTANCE : new JsonPrimitive((long)obValue);
+        return obValue == null ? JsonNull.INSTANCE : new JsonPrimitive((long) obValue);
     }
 
     @Override
@@ -46,7 +47,12 @@ public class CastLong extends CastPrimitive {
         if (value.isJsonNull()) {
             return null;
         }
-        return value.getAsLong();
+        try {
+            return value.getAsLong();
+        } catch (Exception ex) {
+            Log.printWarning(ex);
+            return null;
+        }
     }
 
     @Override

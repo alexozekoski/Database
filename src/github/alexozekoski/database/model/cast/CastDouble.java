@@ -9,6 +9,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonPrimitive;
 import github.alexozekoski.database.Database;
+import github.alexozekoski.database.Log;
 import github.alexozekoski.database.model.Column;
 import github.alexozekoski.database.model.Model;
 import java.lang.reflect.Field;
@@ -44,7 +45,12 @@ public class CastDouble extends CastPrimitive {
         if (value.isJsonNull()) {
             return null;
         }
-        return value.getAsDouble();
+        try {
+            return value.getAsDouble();
+        } catch (Exception ex) {
+            Log.printWarning(ex);
+            return null;
+        }
     }
 
     @Override
