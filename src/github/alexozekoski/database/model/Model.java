@@ -170,20 +170,20 @@ public class Model<T extends Model<T>> {
         return ModelUtil.getNormalColumns(getClass());
     }
 
-    public T set(JsonObject json, String ... fields) {
-        if(fields == null || fields.length == 0){
+    public T set(JsonObject json, String... fields) {
+        if (fields == null || fields.length == 0) {
             return set(json);
-        }else{
+        } else {
             JsonObject values = new JsonObject();
             for (String f : fields) {
-                if(json.has(f)){
+                if (json.has(f)) {
                     values.add(f, json.get(f));
                 }
             }
             return set(values);
         }
     }
-    
+
     public T set(JsonObject json) {
         return set(json, false, false, false, true);
     }
@@ -345,6 +345,24 @@ public class Model<T extends Model<T>> {
 
     public void fill(ResultSet res) throws SQLException, IllegalArgumentException, IllegalAccessException {
         ModelUtil.fill(this, res, new ArrayList());
+    }
+
+    public boolean tryDelete() throws SQLException {
+
+        QueryModel query = query();
+        Field[] primary = getPrimaryColumns();
+
+        for (Field key : primary) {
+            Column col = key.getAnnotation(Column.class
+            );
+            query.where(col.value(), ModelUtil.getQuery(this, key, true));
+        }
+        onDelete();
+        boolean res = query.tryExecuteDelete() > 0;
+        if (res) {
+            afterDelete();
+        }
+        return res;
     }
 
     public boolean delete() {
