@@ -186,6 +186,7 @@ public class PostgresSQLMigration implements MigrationType {
                 sb.append(",");
             }
             sb.append("\nADD ");
+            sb.append("COLUMN ");
             sb.append(col.toString());
         }
         sb.append(";");
