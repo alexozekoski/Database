@@ -78,14 +78,9 @@ public class CastByte extends CastPrimitive {
             return null;
         }
         if (byte[].class.isInstance(arrayValues)) {
-            return new String((byte[]) arrayValues);
+            return arrayValues;
         } else {
-            Byte[] list = (Byte[]) arrayValues;
-            byte[] data = new byte[list.length];
-            for (int i = 0; i < data.length; i++) {
-                data[i] = list[i];
-            }
-            return new String(data);
+            return arrayValues;
         }
     }
 
@@ -130,12 +125,7 @@ public class CastByte extends CastPrimitive {
     @Override
     public String dataType(Field field, Class fieldType, Database database) throws Exception {
         if (field.getType().isArray() || List.class.isAssignableFrom(field.getType())) {
-            Column column = field.getAnnotation(Column.class);
-            if (column.varchar() > 0) {
-                return database.getMigrationType().varchar(column.varchar());
-            } else {
-                return database.getMigrationType().text();
-            }
+            return database.getMigrationType().byteArray();
         }
         return database.getMigrationType().smallint();
     }

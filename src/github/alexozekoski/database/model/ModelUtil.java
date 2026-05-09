@@ -64,6 +64,7 @@ public class ModelUtil {
         map.put(java.util.Date.class, new github.alexozekoski.database.model.cast.CastDateUtil());
         //map.put(FileBase64.class, new github.alexozekoski.database.model.cast.CastFileBase64());
         map.put(Model.class, new github.alexozekoski.database.model.cast.CastModel());
+        map.put(Enum.class, new github.alexozekoski.database.model.cast.CastEnum());
         map.put(Blob.class, new github.alexozekoski.database.model.cast.CastBlob());
 
         return map;
