@@ -44,9 +44,9 @@ public interface MigrationType {
     public String smallint();
 
     public String increment();
-    
+
     public String byteArray();
-    
+
     public String blob();
 
     public String dropTable(String table);
@@ -71,7 +71,7 @@ public interface MigrationType {
     public String addColumn(Table table, Column[] cols);
 
     public String dropColumn(Table table, Column[] cols);
-    
+
     public String carrot();
 //    public String castTypeSQL(String column, String type, long size, long precision, long decimal, boolean nullable, boolean autoincrement, String defaultValue);
 }

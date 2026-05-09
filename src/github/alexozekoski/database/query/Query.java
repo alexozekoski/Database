@@ -50,7 +50,7 @@ public class Query<T extends Query> {
         boolean first = true;
         for (Object ob : values) {
             if (ob != null) {
-                if (ob.getClass().isArray()) {
+                if (ob.getClass().isArray() && !byte[].class.isInstance(ob)) {
                     int size = Array.getLength(ob);
                     for (int i = 0; i < size; i++) {
                         if (first) {
@@ -89,7 +89,7 @@ public class Query<T extends Query> {
         List<Object> list = new ArrayList();
         for (Object ob : values) {
             if (ob != null) {
-                if (ob.getClass().isArray()) {
+                if (ob.getClass().isArray() && !byte[].class.isInstance(ob)) {
                     int size = Array.getLength(ob);
                     for (int i = 0; i < size; i++) {
                         list.add(Array.get(ob, i));
@@ -553,7 +553,7 @@ public class Query<T extends Query> {
             if (clause.hasValue(type)) {
                 Object value = clause.value(type);
                 if (value != null) {
-                    if (value.getClass().isArray()) {
+                    if (value.getClass().isArray() && !byte[].class.isInstance(value)) {
                         for (int i = 0; i < Array.getLength(value); i++) {
                             objects.add(Array.get(value, i));
                         }

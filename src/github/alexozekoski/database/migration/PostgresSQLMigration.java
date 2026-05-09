@@ -228,4 +228,5 @@ public class PostgresSQLMigration implements MigrationType {
     public String blob() {
         return "BYTEA";
     }
+
 }

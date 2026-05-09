@@ -158,7 +158,6 @@ public abstract class Database {
             stmt = con.prepareStatement(query);
         }
         stmt.closeOnCompletion();
-
         if (param != null) {
             for (int i = 0; i < param.length; i++) {
                 stmt.setObject(i + 1, param[i]);
