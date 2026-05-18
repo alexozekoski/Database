@@ -56,11 +56,13 @@ public abstract class Database {
 
     public static boolean FORCE_DEBUGGER = false;
 
-    public static DatabaseAction DEFAULT_ACTION = null;
+    public static DatabaseListener DEFAULT_LISTENER = null;
 
     private boolean debugger = false;
 
-    private boolean autoreconnect = true;
+    private volatile boolean autoReconnect = true;
+
+    private volatile boolean autoCommit = true;
 
     static {
 //        try {
@@ -163,27 +165,32 @@ public abstract class Database {
                 stmt.setObject(i + 1, param[i]);
             }
         }
-        String value = queryToSqlString(query, stmt, param);
-        if (DEFAULT_ACTION != null) {
-            DEFAULT_ACTION.query(value, this);
-        }
-        if (debugger || FORCE_DEBUGGER) {
-            System.out.println(value);
-        }
         return stmt;
     }
 
-    private Statement createStatement(String query) throws SQLException {
-
-        Statement st = con.createStatement();
-        st.closeOnCompletion();
-        String value = queryToSqlString(query, st);
-        if (DEFAULT_ACTION != null) {
-            DEFAULT_ACTION.query(value, this);
+    public void printQuery(String query, Statement statement, Object... param) {
+        String value = queryToSqlString(query, statement, param);
+        if (DEFAULT_LISTENER != null) {
+            DEFAULT_LISTENER.query(value, this);
         }
         if (debugger || FORCE_DEBUGGER) {
             System.out.println(value);
         }
+    }
+
+    public void printQuery(String query, Statement statement) {
+        String value = queryToSqlString(query, statement);
+        if (DEFAULT_LISTENER != null) {
+            DEFAULT_LISTENER.query(value, this);
+        }
+        if (debugger || FORCE_DEBUGGER) {
+            System.out.println(value);
+        }
+    }
+
+    private Statement createStatement() throws SQLException {
+        Statement st = con.createStatement();
+        st.closeOnCompletion();
         return st;
     }
 
@@ -405,7 +412,7 @@ public abstract class Database {
 
     }
 
-    public void tryConnectOrCreateDatabase() throws SQLException {
+    public void tryConnectOrCreateDatabase() throws SQLException, Exception {
         try {
             tryConnect();
         } catch (Exception ex) {
@@ -660,6 +667,93 @@ public abstract class Database {
         return ob;
     }
 
+    public void executeTransaction(DatabaseTransaction databaseTransaction, DatabaseException errorCallback){
+        try {
+            executeTransaction(databaseTransaction);
+        } catch (Exception ex) {
+            if (errorCallback != null) {
+                errorCallback.run(ex);
+            }else{
+                Log.printError(ex);
+            }
+        }
+    }
+
+    public void executeTransaction(DatabaseTransaction databaseTransaction) throws Exception {
+        autoCommit = false;
+        try {
+            databaseTransaction.run(this);
+        } finally {
+            autoCommit = true;
+        }
+    }
+
+    protected Savepoint createSavepoint() throws SQLException {
+        return getConnection().getAutoCommit() || !autoCommit ? null : getConnection().setSavepoint();
+    }
+
+    protected void rollback(Savepoint savepoint) {
+        if (savepoint == null) {
+            return;
+        }
+        try {
+            getConnection().rollback(savepoint);
+        } catch (SQLException rollbackError) {
+            rollbackError.printStackTrace();
+            try {
+                getConnection().rollback();
+            } catch (SQLException ignored) {
+                ignored.printStackTrace();
+            }
+        }
+    }
+
+    protected void commit(Savepoint savepoint) throws SQLException {
+        try {
+            if (!getConnection().getAutoCommit() && autoCommit) {
+                getConnection().commit();
+            }
+        } catch (SQLException ex) {
+            rollback(savepoint);
+            throw ex;
+        }
+    }
+
+    protected void executePreparedStatement(String query, boolean returnKeys, DatabasePreparedStatement databasePreparedStatement, Object... param) throws SQLException, Exception {
+        try {
+            PreparedStatement stmt = createPreparedStatement(query, returnKeys, param);
+            Savepoint savepoint = createSavepoint();
+            try {
+                databasePreparedStatement.run(stmt);
+            } catch (Exception ex) {
+                rollback(savepoint);
+                throw ex;
+            }
+            commit(savepoint);
+            stmt.close();
+        } catch (Exception ex) {
+            throw ex;
+        }
+
+    }
+
+    protected void executeStatement(DatabaseStatement databaseStatement) throws SQLException, Exception {
+        try {
+            Statement stmt = createStatement();
+            Savepoint savepoint = createSavepoint();
+            try {
+                databaseStatement.run(stmt);
+            } catch (Exception ex) {
+                rollback(savepoint);
+                throw ex;
+            }
+            commit(savepoint);
+            stmt.close();
+        } catch (Exception ex) {
+            throw ex;
+        }
+    }
+
     /**
      * @param callback
      * @param query SQL defaul query,
@@ -671,39 +765,23 @@ public abstract class Database {
 
     private void tryExecuteReturnigGeneratedKeys(DatabaseResultset callback, String query, int attempts) throws SQLException, Exception {
         try {
-            Savepoint savepoint = getConnection().getAutoCommit() ? null : getConnection().setSavepoint();
-            Statement stmt = createStatement(query);
-            stmt.closeOnCompletion();
-            ResultSet resultSet = null;
-            try {
-                if (stmt.execute(query, Statement.RETURN_GENERATED_KEYS)) {
-                    resultSet = stmt.getGeneratedKeys();
+            executeStatement((Statement statement) -> {
+                ResultSet resultSet = null;
+                if (statement.execute(query, Statement.RETURN_GENERATED_KEYS)) {
+                    resultSet = statement.getGeneratedKeys();
                 }
-            } catch (SQLException e) {
-                if (savepoint != null) {
-                    getConnection().rollback(savepoint);
+                try {
+                    callback.run(resultSet);
+                } catch (Exception ex) {
+                    throw ex;
+                } finally {
+                    if (resultSet != null) {
+                        resultSet.close();
+                    }
                 }
-                stmt.close();
-                throw e;
-            }
-            if (savepoint != null) {
-                getConnection().commit();
-            }
-            if (resultSet == null) {
-                stmt.close();
-            }
-            try {
-                callback.run(resultSet);
-            } catch (Exception ex) {
-                throw ex;
-            } finally {
-                if (resultSet != null) {
-                    resultSet.close();
-                }
-            }
-
+            });
         } catch (SQLException ex) {
-            if (!isConnected() && autoreconnect && attempts < maxReconnectAttempts) {
+            if (!isConnected() && autoReconnect && attempts < maxReconnectAttempts) {
                 tryReconnect();
                 tryExecuteReturnigGeneratedKeys(callback, query, attempts + 1);
             } else {
@@ -813,42 +891,24 @@ public abstract class Database {
 
     private void tryExecuteReturnigGeneratedKeys(DatabaseResultset callback, String query, int attempts, Object... param) throws SQLException, Exception {
         try {
-            Savepoint savepoint = getConnection().getAutoCommit() ? null : getConnection().setSavepoint();
-            PreparedStatement stmt = createPreparedStatement(query, true, param);
-            ResultSet resultSet = null;
-            try {
-
-                if (stmt.executeUpdate() > 0) {
-                    resultSet = stmt.getGeneratedKeys();
+            executePreparedStatement(query, true, (PreparedStatement statement) -> {
+                ResultSet resultSet = null;
+                if (statement.executeUpdate() > 0) {
+                    resultSet = statement.getGeneratedKeys();
                 }
-
-            } catch (SQLException e) {
-                if (savepoint != null) {
-                    getConnection().rollback(savepoint);
+                try {
+                    callback.run(resultSet);
+                } catch (Exception ex) {
+                    throw ex;
+                } finally {
+                    if (resultSet != null) {
+                        resultSet.close();
+                    }
                 }
-                stmt.close();
-                throw e;
-            }
-            if (savepoint != null) {
-                getConnection().commit();
-            }
-
-            if (resultSet == null) {
-                stmt.close();
-            }
-
-            try {
-                callback.run(resultSet);
-            } catch (Exception ex) {
-                throw ex;
-            } finally {
-                if (resultSet != null) {
-                    resultSet.close();
-                }
-            }
+            }, param);
 
         } catch (SQLException ex) {
-            if (!isConnected() && autoreconnect && attempts < maxReconnectAttempts) {
+            if (!isConnected() && autoReconnect && attempts < maxReconnectAttempts) {
                 tryReconnect();
                 tryExecuteReturnigGeneratedKeys(callback, query, attempts + 1, param);
             } else {
@@ -870,38 +930,20 @@ public abstract class Database {
 
     private void tryExecute(DatabaseResultset callback, String query, int attempts) throws SQLException, Exception {
         try {
-            Savepoint savepoint = getConnection().getAutoCommit() ? null : getConnection().setSavepoint();
-            Statement stmt = createStatement(query);
-            stmt.closeOnCompletion();
-            ResultSet resultSet = null;
-            try {
-                resultSet = stmt.executeQuery(query);
-            } catch (SQLException e) {
-                if (savepoint != null) {
-                    getConnection().rollback(savepoint);
+            executeStatement((Statement statement) -> {
+                ResultSet resultSet = statement.executeQuery(query);
+                try {
+                    callback.run(resultSet);
+                } catch (Exception ex) {
+                    throw ex;
+                } finally {
+                    if (resultSet != null) {
+                        resultSet.close();
+                    }
                 }
-
-                stmt.close();
-                throw e;
-            }
-            if (savepoint != null) {
-                getConnection().commit();
-            }
-
-            if (resultSet == null) {
-                stmt.close();
-            }
-            try {
-                callback.run(resultSet);
-            } catch (Exception ex) {
-                throw ex;
-            } finally {
-                if (resultSet != null) {
-                    resultSet.close();
-                }
-            }
+            });
         } catch (SQLException ex) {
-            if (!isConnected() && autoreconnect && attempts < maxReconnectAttempts) {
+            if (!isConnected() && autoReconnect && attempts < maxReconnectAttempts) {
                 tryReconnect();
                 tryExecute(callback, query, attempts + 1);
             } else {
@@ -924,38 +966,21 @@ public abstract class Database {
 
     private void tryExecute(DatabaseResultset callback, String query, int attempts, Object... param) throws SQLException, Exception {
         try {
-            Savepoint savepoint = getConnection().getAutoCommit() ? null : getConnection().setSavepoint();
-            PreparedStatement stmt = createPreparedStatement(query, false, param);
-
-            ResultSet resultSet = null;
-            try {
-                resultSet = stmt.executeQuery();
-            } catch (SQLException e) {
-                System.out.println(query);
-                if (savepoint != null) {
-                    getConnection().rollback(savepoint);
+            executePreparedStatement(query, false, (PreparedStatement statement) -> {
+                ResultSet resultSet = statement.executeQuery();
+                try {
+                    callback.run(resultSet);
+                } catch (Exception ex) {
+                    throw ex;
+                } finally {
+                    if (resultSet != null) {
+                        resultSet.close();
+                    }
                 }
-                stmt.close();
-                throw e;
-            }
-            if (savepoint != null) {
-                getConnection().commit();
-            }
+            }, param);
 
-            if (resultSet == null) {
-                stmt.close();
-            }
-            try {
-                callback.run(resultSet);
-            } catch (Exception ex) {
-                throw ex;
-            } finally {
-                if (resultSet != null) {
-                    resultSet.close();
-                }
-            }
         } catch (SQLException ex) {
-            if (!isConnected() && autoreconnect && attempts < maxReconnectAttempts) {
+            if (!isConnected() && autoReconnect && attempts < maxReconnectAttempts) {
                 tryReconnect();
                 tryExecute(callback, query, attempts + 1, param);
             } else {
@@ -982,33 +1007,20 @@ public abstract class Database {
         }
     }
 
-    public int tryExecuteUpdate(String query, Object... param) throws SQLException {
+    public int tryExecuteUpdate(String query, Object... param) throws SQLException, Exception {
         return tryExecuteUpdate(query, 0, param);
     }
 
-    private int tryExecuteUpdate(String query, int attempts, Object... param) throws SQLException {
+    private int tryExecuteUpdate(String query, int attempts, Object... param) throws SQLException, Exception {
         try {
-            Savepoint savepoint = getConnection().getAutoCommit() ? null : getConnection().setSavepoint();
-            PreparedStatement stmt = createPreparedStatement(query, false, param);
-            int total = 0;
-            try {
-                total = stmt.executeUpdate();
-            } catch (SQLException e) {
-                if (savepoint != null) {
-                    getConnection().rollback(savepoint);
-                }
-                stmt.close();
-                throw e;
-            }
-            if (savepoint != null) {
-                getConnection().commit();
-            }
-
-            stmt.close();
-            return total;
+            int[] total = new int[1];
+            executePreparedStatement(query, false, (PreparedStatement statement) -> {
+                total[0] = statement.executeUpdate();
+            }, param);
+            return total[0];
 
         } catch (SQLException ex) {
-            if (!isConnected() && autoreconnect && attempts < maxReconnectAttempts) {
+            if (!isConnected() && autoReconnect && attempts < maxReconnectAttempts) {
                 tryReconnect();
                 return tryExecuteUpdate(query, attempts + 1, param);
             } else {
@@ -1020,41 +1032,34 @@ public abstract class Database {
     public boolean executeVoid(String query) {
         try {
             return tryExecuteVoid(query);
-        } catch (SQLException ex) {
+        } catch (Exception ex) {
             Log.printError(ex);
             return false;
         }
     }
 
-    public boolean tryExecuteVoid(String query) throws SQLException {
+    public boolean tryExecuteVoid(String query) throws SQLException, Exception {
         return tryExecuteVoid(query, 0);
     }
 
-    private boolean tryExecuteVoid(String query, int attempts) throws SQLException {
+    private boolean tryExecuteVoid(String query, int attempts) throws SQLException, Exception {
         try {
-            Savepoint savepoint = getConnection().getAutoCommit() ? null : getConnection().setSavepoint();
-            Statement stmt = createStatement(query);
-            stmt.closeOnCompletion();
-            boolean exe = false;
-            try {
-                exe = stmt.execute(query);
-            } catch (SQLException e) {
-                if (savepoint != null) {
-                    getConnection().rollback(savepoint);
+            boolean[] exe = new boolean[1];
+            executeStatement((Statement statement) -> {
+                ResultSet resultSet = statement.executeQuery(query);
+                try {
+                    exe[0] = statement.execute(query);
+                } catch (Exception ex) {
+                    throw ex;
+                } finally {
+                    if (resultSet != null) {
+                        resultSet.close();
+                    }
                 }
-
-                stmt.close();
-                throw e;
-            }
-            if (savepoint != null) {
-                getConnection().commit();
-            }
-
-            stmt.close();
-            return exe;
-
+            });
+            return exe[0];
         } catch (SQLException ex) {
-            if (!isConnected() && autoreconnect && attempts < maxReconnectAttempts) {
+            if (!isConnected() && autoReconnect && attempts < maxReconnectAttempts) {
                 tryReconnect();
                 return tryExecuteVoid(query, attempts + 1);
             } else {
@@ -1066,41 +1071,34 @@ public abstract class Database {
     public boolean executeVoid(String query, Object... param) {
         try {
             return tryExecuteVoid(query, param);
-
-        } catch (SQLException ex) {
+        } catch (Exception ex) {
             Log.printError(ex);
             return false;
         }
     }
 
-    public boolean tryExecuteVoid(String query, Object... param) throws SQLException {
+    public boolean tryExecuteVoid(String query, Object... param) throws SQLException, Exception {
         return tryExecuteVoid(query, 0, param);
     }
 
-    private boolean tryExecuteVoid(String query, int attempts, Object... param) throws SQLException {
+    private boolean tryExecuteVoid(String query, int attempts, Object... param) throws SQLException, Exception {
         try {
-            Savepoint savepoint = getConnection().getAutoCommit() ? null : getConnection().setSavepoint();
-            PreparedStatement stmt = createPreparedStatement(query, false, param);
-            boolean res = false;
-            try {
-                stmt.execute();
-            } catch (SQLException e) {
-                if (savepoint != null) {
-                    getConnection().rollback(savepoint);
+            boolean[] exe = new boolean[1];
+            executePreparedStatement(query, false, (PreparedStatement statement) -> {
+                ResultSet resultSet = statement.executeQuery(query);
+                try {
+                    exe[0] = statement.execute();
+                } catch (Exception ex) {
+                    throw ex;
+                } finally {
+                    if (resultSet != null) {
+                        resultSet.close();
+                    }
                 }
-
-                stmt.close();
-                throw e;
-            }
-            if (savepoint != null) {
-                getConnection().commit();
-            }
-
-            stmt.close();
-            return res;
-
+            }, param);
+            return exe[0];
         } catch (SQLException ex) {
-            if (!isConnected() && autoreconnect && attempts < maxReconnectAttempts) {
+            if (!isConnected() && autoReconnect && attempts < maxReconnectAttempts) {
                 tryReconnect();
                 return tryExecuteVoid(query, attempts + 1, param);
             } else {
@@ -1109,35 +1107,20 @@ public abstract class Database {
         }
     }
 
-    public int tryExecuteUpdate(String query) throws SQLException {
+    public int tryExecuteUpdate(String query) throws SQLException, Exception {
         return tryExecuteUpdate(query, 0);
     }
 
-    private int tryExecuteUpdate(String query, int attempts) throws SQLException {
+    private int tryExecuteUpdate(String query, int attempts) throws SQLException, Exception {
         try {
-            Savepoint savepoint = getConnection().getAutoCommit() ? null : getConnection().setSavepoint();
-            Statement stmt = createStatement(query);
-            stmt.closeOnCompletion();
-            int total = 0;
-            try {
-                total = stmt.executeUpdate(query);
-            } catch (SQLException e) {
-                if (savepoint != null) {
-                    getConnection().rollback(savepoint);
-                }
-
-                stmt.close();
-                throw e;
-            }
-            if (savepoint != null) {
-                getConnection().commit();
-            }
-
-            stmt.close();
-            return total;
+            int[] total = new int[1];
+            executeStatement((Statement statement) -> {
+                total[0] = statement.executeUpdate(query);
+            });
+            return total[0];
 
         } catch (SQLException ex) {
-            if (!isConnected() && autoreconnect && attempts < maxReconnectAttempts) {
+            if (!isConnected() && autoReconnect && attempts < maxReconnectAttempts) {
                 tryReconnect();
                 return tryExecuteUpdate(query, attempts + 1);
             } else {
@@ -1255,7 +1238,7 @@ public abstract class Database {
         return cols.toArray(new github.alexozekoski.database.migration.Column[cols.size()]);
     }
 
-    public void createTableIfNotExist(Class<? extends Model>... models) throws SQLException {
+    public void createTableIfNotExist(Class<? extends Model>... models) throws SQLException, Exception {
         JsonArray lista = getTablesAsJson();
         if (lista == null) {
             return;
@@ -1364,7 +1347,7 @@ public abstract class Database {
 
     public abstract Long getNextSequecialIdAndIncrement(String table, String column);
 
-    public boolean tryExecuteFile(File sql) throws IOException, SQLException {
+    public boolean tryExecuteFile(File sql) throws IOException, SQLException, Exception {
         FileInputStream in = new FileInputStream(sql);
         try {
             byte[] buffer = new byte[(int) sql.length()];
@@ -1384,7 +1367,7 @@ public abstract class Database {
         }
     }
 
-    public boolean tryExecuteFile(String dirSql) throws IOException, SQLException {
+    public boolean tryExecuteFile(String dirSql) throws IOException, SQLException, Exception {
         return tryExecuteFile(new File(dirSql));
     }
 
@@ -1397,7 +1380,7 @@ public abstract class Database {
         }
     }
 
-    public boolean tryCreateDatabase(String database) throws SQLException {
+    public boolean tryCreateDatabase(String database) throws SQLException, Exception {
         boolean auto = getConnection().getAutoCommit();
         getConnection().setAutoCommit(true);
         String query = getMigrationType().createDatabase(database);
@@ -1415,7 +1398,7 @@ public abstract class Database {
         return false;
     }
 
-    public boolean tryDropDatabase(String database) throws SQLException {
+    public boolean tryDropDatabase(String database) throws SQLException, Exception {
         String query = getMigrationType().dropDatabase(database);
         return tryExecuteVoid(query);
     }
@@ -1429,7 +1412,7 @@ public abstract class Database {
         return false;
     }
 
-    public boolean tryDropDatabase() throws SQLException {
+    public boolean tryDropDatabase() throws SQLException, Exception {
         return tryDropDatabase(getDatabase());
     }
 
@@ -1442,7 +1425,7 @@ public abstract class Database {
         return false;
     }
 
-    public void dropAllTables() throws SQLException {
+    public void dropAllTables() throws SQLException, Exception {
         String[] tables = getTables();
         for (String table : tables) {
             table(table).dropTable();
@@ -1536,11 +1519,11 @@ public abstract class Database {
     public abstract String getName();
 
     public boolean isAutoreconnect() {
-        return autoreconnect;
+        return autoReconnect;
     }
 
-    public void setAutoreconnect(boolean autoreconnect) {
-        this.autoreconnect = autoreconnect;
+    public void setAutoreconnect(boolean autoReconnect) {
+        this.autoReconnect = autoReconnect;
     }
 
     public String getApplicationName() {

@@ -13,6 +13,8 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import github.alexozekoski.database.Database;
+import github.alexozekoski.database.DatabaseException;
+import github.alexozekoski.database.DatabaseTransaction;
 import github.alexozekoski.database.Log;
 import github.alexozekoski.database.query.Query;
 import github.alexozekoski.database.query.QueryModel;
@@ -33,12 +35,11 @@ public class Model<T extends Model<T>> {
 
     private Database database = DEFAULT_DATABASE;
 
-    // private ModelAction<T> action = null;
     public static int DEFAULT_VARCHAR_SIZE = 255;
 
     private boolean debugger;
 
-    public static final Map<Class<? extends Model>, List<ModelAction>> LISTENERS = Collections.synchronizedMap(new HashMap());
+    public static final Map<Class<? extends Model>, List<ModelListener>> LISTENERS = Collections.synchronizedMap(new HashMap());
 
     public Model() {
 
@@ -100,9 +101,9 @@ public class Model<T extends Model<T>> {
         throw new Exception("A constructor without arguments or with database was not found");
     }
 
-    public static <M extends Model> void addListener(Class<M> model, ModelAction<M> action) {
+    public static <M extends Model> void addListener(Class<M> model, ModelListener<M> action) {
         synchronized (LISTENERS) {
-            List<ModelAction> actions = LISTENERS.get(model);
+            List<ModelListener> actions = LISTENERS.get(model);
             if (actions == null) {
                 actions = Collections.synchronizedList(new ArrayList());
                 LISTENERS.put(model, actions);
@@ -111,9 +112,9 @@ public class Model<T extends Model<T>> {
         }
     }
 
-    public static <M extends Model> boolean removeListener(Class<M> model, ModelAction<M> action) {
+    public static <M extends Model> boolean removeListener(Class<M> model, ModelListener<M> action) {
         synchronized (LISTENERS) {
-            List<ModelAction> actions = LISTENERS.get(model);
+            List<ModelListener> actions = LISTENERS.get(model);
             if (actions != null) {
                 return actions.remove(action);
             }
@@ -121,17 +122,17 @@ public class Model<T extends Model<T>> {
         }
     }
 
-    public static <M extends Model> List<ModelAction> getListeners(Class<M> model) {
+    public static <M extends Model> List<ModelListener> getListeners(Class<M> model) {
         synchronized (LISTENERS) {
             return LISTENERS.get(model);
         }
     }
 
-    public void addListener(ModelAction action) {
+    public void addListener(ModelListener action) {
         addListener(this.getClass(), action);
     }
 
-    public List<ModelAction> getListeners() {
+    public List<ModelListener> getListeners() {
         return getListeners(this.getClass());
     }
 
@@ -347,7 +348,7 @@ public class Model<T extends Model<T>> {
         ModelUtil.fill(this, res, new ArrayList());
     }
 
-    public boolean tryDelete() throws SQLException {
+    public boolean tryDelete() throws SQLException, Exception {
 
         QueryModel query = query();
         Field[] primary = getPrimaryColumns();
@@ -392,7 +393,7 @@ public class Model<T extends Model<T>> {
     }
 
     public void onUpdate() {
-        List<ModelAction> actions = getListeners();
+        List<ModelListener> actions = getListeners();
         if (actions != null) {
             actions.forEach((action) -> {
                 action.onUpdate(this);
@@ -401,7 +402,7 @@ public class Model<T extends Model<T>> {
     }
 
     public void onInsert() {
-        List<ModelAction> actions = getListeners();
+        List<ModelListener> actions = getListeners();
         if (actions != null) {
             actions.forEach((action) -> {
                 action.onInsert(this);
@@ -410,7 +411,7 @@ public class Model<T extends Model<T>> {
     }
 
     public void onDelete() {
-        List<ModelAction> actions = getListeners();
+        List<ModelListener> actions = getListeners();
         if (actions != null) {
             actions.forEach((action) -> {
                 action.onDelete(this);
@@ -419,7 +420,7 @@ public class Model<T extends Model<T>> {
     }
 
     public void onSelect() {
-        List<ModelAction> actions = getListeners();
+        List<ModelListener> actions = getListeners();
         if (actions != null) {
             actions.forEach((action) -> {
                 action.onSelect(this);
@@ -428,7 +429,7 @@ public class Model<T extends Model<T>> {
     }
 
     public void afterSelect() {
-        List<ModelAction> actions = getListeners();
+        List<ModelListener> actions = getListeners();
         if (actions != null) {
             actions.forEach((action) -> {
                 action.afterSelect(this);
@@ -437,7 +438,7 @@ public class Model<T extends Model<T>> {
     }
 
     public void afterUpdate() {
-        List<ModelAction> actions = getListeners();
+        List<ModelListener> actions = getListeners();
         if (actions != null) {
             actions.forEach((action) -> {
                 action.afterUpdate(this);
@@ -446,7 +447,7 @@ public class Model<T extends Model<T>> {
     }
 
     public void afterInsert() {
-        List<ModelAction> actions = getListeners();
+        List<ModelListener> actions = getListeners();
         if (actions != null) {
             actions.forEach((action) -> {
                 action.afterInsert(this);
@@ -455,12 +456,20 @@ public class Model<T extends Model<T>> {
     }
 
     public void afterDelete() {
-        List<ModelAction> actions = getListeners();
+        List<ModelListener> actions = getListeners();
         if (actions != null) {
             actions.forEach((action) -> {
                 action.afterDelete(this);
             });
         }
+    }
+
+    public void executeTransaction(DatabaseTransaction databaseTransaction, DatabaseException errorCallback) {
+        getDatabase().executeTransaction(databaseTransaction, errorCallback);
+    }
+
+    public void executeTransaction(DatabaseTransaction databaseTransaction) throws Exception {
+        getDatabase().executeTransaction(databaseTransaction);
     }
 
     public Database getDatabase() {

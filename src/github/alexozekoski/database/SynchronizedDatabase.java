@@ -35,7 +35,7 @@ public class SynchronizedDatabase extends Database {
     }
 
     @Override
-    public void tryConnect(boolean readOnly, Properties props) throws SQLException {
+    public synchronized void tryConnect(boolean readOnly, Properties props) throws SQLException {
         database.tryConnect(readOnly, props);
     }
 
@@ -55,7 +55,7 @@ public class SynchronizedDatabase extends Database {
     }
 
     @Override
-    public synchronized void tryConnectOrCreateDatabase() throws SQLException {
+    public synchronized void tryConnectOrCreateDatabase() throws SQLException, Exception {
         database.tryConnectOrCreateDatabase();
     }
 
@@ -70,22 +70,22 @@ public class SynchronizedDatabase extends Database {
     }
 
     @Override
-    public synchronized int tryExecuteUpdate(String query, Object... param) throws SQLException {
+    public synchronized int tryExecuteUpdate(String query, Object... param) throws SQLException, Exception {
         return database.tryExecuteUpdate(query, param);
     }
 
     @Override
-    public synchronized boolean tryExecuteVoid(String query) throws SQLException {
+    public synchronized boolean tryExecuteVoid(String query) throws SQLException, Exception {
         return database.tryExecuteVoid(query);
     }
 
     @Override
-    public synchronized boolean tryExecuteVoid(String query, Object... param) throws SQLException {
+    public synchronized boolean tryExecuteVoid(String query, Object... param) throws SQLException, Exception {
         return database.tryExecuteVoid(query, param);
     }
 
     @Override
-    public synchronized int tryExecuteUpdate(String query) throws SQLException {
+    public synchronized int tryExecuteUpdate(String query) throws SQLException, Exception {
         return database.tryExecuteUpdate(query);
     }
 
@@ -110,7 +110,7 @@ public class SynchronizedDatabase extends Database {
     }
 
     @Override
-    public synchronized void createTableIfNotExist(Class<? extends Model>... models) throws SQLException {
+    public synchronized void createTableIfNotExist(Class<? extends Model>... models) throws SQLException, Exception {
         database.createTableIfNotExist(models);
     }
 
@@ -125,22 +125,22 @@ public class SynchronizedDatabase extends Database {
     }
 
     @Override
-    public synchronized boolean tryExecuteFile(File sql) throws IOException, SQLException {
+    public synchronized boolean tryExecuteFile(File sql) throws IOException, SQLException, Exception {
         return database.tryExecuteFile(sql);
     }
 
     @Override
-    public synchronized boolean tryCreateDatabase(String database) throws SQLException {
+    public synchronized boolean tryCreateDatabase(String database) throws SQLException, Exception {
         return this.database.tryCreateDatabase(database);
     }
 
     @Override
-    public synchronized boolean tryDropDatabase(String database) throws SQLException {
+    public synchronized boolean tryDropDatabase(String database) throws SQLException, Exception {
         return this.database.tryDropDatabase(database);
     }
 
     @Override
-    public synchronized void dropAllTables() throws SQLException {
+    public synchronized void dropAllTables() throws SQLException, Exception {
         database.dropAllTables();
     }
 
@@ -310,6 +310,11 @@ public class SynchronizedDatabase extends Database {
     @Override
     public Long getNextSequecialIdAndIncrement(String table, String column) {
         return database.getNextSequecialIdAndIncrement(table, column);
+    }
+
+    @Override
+    public synchronized void executeTransaction(DatabaseTransaction databaseTransaction) throws Exception {
+        database.executeTransaction(databaseTransaction);
     }
 
 }

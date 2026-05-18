@@ -245,7 +245,7 @@ public class ModelUtil {
                 joins.add(new Join("INNER JOIN", table, Query.parseColumn(table, key, database.getMigrationType()) + " = " + column.value(), database.getMigrationType()));
             }
         }
-        return joins.toArray(new Join[joins.size()]);
+        return joins.toArray(Join[]::new);
     }
 
     public static Field[] getAllColumns(Class model, boolean insert, boolean update, boolean select, boolean fill, boolean validate) {
@@ -257,7 +257,7 @@ public class ModelUtil {
                 fields.add(field);
             }
         }
-        return fields.toArray(new Field[fields.size()]);
+        return fields.toArray(Field[]::new);
     }
 
     public static Object getQuery(Model model, List<Model> stack, Field field, JsonElement value, boolean where) {
@@ -533,9 +533,6 @@ public class ModelUtil {
         }
         long res = query.tryExecuteUpdate();
         model.afterUpdate();
-//        if (model.getAction() != null) {
-//            model.getAction().afterUpdate(model);
-//        }
         return res > 0;
     }
 

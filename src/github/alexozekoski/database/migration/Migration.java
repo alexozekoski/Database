@@ -16,15 +16,15 @@ import java.util.List;
  */
 public abstract class Migration {
 
-    public static void migrate(Database database, List<Class<? extends Model>> models) throws SQLException {
+    public static void migrate(Database database, List<Class<? extends Model>> models) throws SQLException, Exception {
         migrate(database, true, true, models);
     }
 
-    public static void migrate(Database database, Class<? extends Model>... models) throws SQLException {
+    public static void migrate(Database database, Class<? extends Model>... models) throws SQLException, Exception {
         migrate(database, true, true, models);
     }
 
-    public static void migrate(Database database, boolean alterCols, boolean dropCold, List<Class<? extends Model>> models) throws SQLException {
+    public static void migrate(Database database, boolean alterCols, boolean dropCold, List<Class<? extends Model>> models) throws SQLException, Exception {
         for (Class<? extends Model> classe : models) {
             char result = database.migrate(classe, alterCols, dropCold).update(true, alterCols, dropCold);
             if(result == 'C' && Seeder.class.isAssignableFrom(classe)){
@@ -34,7 +34,7 @@ public abstract class Migration {
         }
     }
 
-    public static void migrate(Database database, boolean alterCols, boolean dropCold, Class<? extends Model>... models) throws SQLException {
+    public static void migrate(Database database, boolean alterCols, boolean dropCold, Class<? extends Model>... models) throws SQLException, Exception {
         for (Class<? extends Model> classe : models) {
             char result = database.migrate(classe, alterCols, dropCold).update(true, alterCols, dropCold);
             if(result == 'C' && Seeder.class.isAssignableFrom(classe)){
@@ -44,7 +44,7 @@ public abstract class Migration {
         }
     }
 
-    public static void fresh(Database database, List<Class<? extends Model>> models) throws SQLException {
+    public static void fresh(Database database, List<Class<? extends Model>> models) throws SQLException, Exception {
         for (int i = models.size() - 1; i >= 0; i--) {
             Class<? extends Model> classe = models.get(i);
             database.migrate(classe, true, true).dropTable();
@@ -52,7 +52,7 @@ public abstract class Migration {
         migrate(database, true, true, models);
     }
 
-    public static void fresh(Database database, Class<? extends Model>... models) throws SQLException {
+    public static void fresh(Database database, Class<? extends Model>... models) throws SQLException, Exception {
         for (int i = models.length - 1; i >= 0; i--) {
             Class<? extends Model> classe = models[i];
             database.migrate(classe, true, true).dropTable();
@@ -60,7 +60,7 @@ public abstract class Migration {
         migrate(database, true, true, models);
     }
 
-    public static void drop(Database database, List<Class<? extends Model>> models) throws SQLException {
+    public static void drop(Database database, List<Class<? extends Model>> models) throws SQLException, Exception {
         for (int i = models.size() - 1; i >= 0; i--) {
             Class<? extends Model> classe = models.get(i);
             database.migrate(classe, true, true).dropTable();
@@ -70,7 +70,7 @@ public abstract class Migration {
         }
     }
 
-    public static void drop(Database database, Class<? extends Model>... models) throws SQLException {
+    public static void drop(Database database, Class<? extends Model>... models) throws SQLException, Exception {
         for (Class<? extends Model> classe : models) {
             database.migrate(classe, true, true).dropTable();
         }

@@ -21,9 +21,9 @@ import java.util.List;
  */
 public class Table {
 
-    private String name;
+    private final String name;
 
-    private List<Column> columns = new ArrayList();
+    private final List<Column> columns = new ArrayList();
 
     private MigrationType migration;
 
@@ -220,7 +220,7 @@ public class Table {
         return migration.dropColumn(this, cols);
     }
 
-    public boolean alterColumns() throws SQLException {
+    public boolean alterColumns() throws SQLException, Exception {
         String query = getAlterColumnsQuery();
         if (query == null) {
             return false;
@@ -232,7 +232,7 @@ public class Table {
         return true;
     }
 
-    public boolean dropColumns() throws SQLException {
+    public boolean dropColumns() throws SQLException, Exception {
         String query = getDropColumnsQuery();
         if (query == null) {
             return false;
@@ -244,11 +244,11 @@ public class Table {
         return true;
     }
 
-    public void update() throws SQLException {
+    public void update() throws SQLException, Exception {
         update(true, true, true);
     }
 
-    public char update(boolean create, boolean add, boolean drop) throws SQLException {
+    public char update(boolean create, boolean add, boolean drop) throws SQLException, Exception {
         if (!exists()) {
             if (create) {
                 create();
@@ -266,7 +266,7 @@ public class Table {
         return '0';
     }
 
-    public boolean create() throws SQLException {
+    public boolean create() throws SQLException, Exception {
         boolean ok = database.tryExecuteUpdate(getCreateQuery()) != 0;
         if (ok) {
             exists = true;
@@ -277,7 +277,7 @@ public class Table {
         return ok;
     }
 
-    public boolean dropTable() throws SQLException {
+    public boolean dropTable() throws SQLException, Exception {
 
         boolean ok = database.tryExecuteUpdate(getDropTableQuery()) != -1;
         if (ok) {

@@ -11,7 +11,7 @@ import com.google.gson.JsonObject;
  *
  * @author alexo
  */
-public interface ModelAction<T> {
+public interface ModelListener<T> {
 
     public void onInsert(T model);
 

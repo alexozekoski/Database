@@ -12,6 +12,8 @@ import github.alexozekoski.database.Database;
 import github.alexozekoski.database.DatabaseResultset;
 import github.alexozekoski.database.Log;
 import github.alexozekoski.database.migration.MigrationType;
+import github.alexozekoski.database.migration.SQLiteMigration;
+import github.alexozekoski.database.model.Model;
 import github.alexozekoski.database.model.ModelUtil;
 import java.lang.reflect.Array;
 import java.sql.ResultSet;
@@ -230,6 +232,14 @@ public class Query<T extends Query> {
         return (T) this;
     }
 
+    public T orderByDesc(Object column) {
+        return orderBy(column, "DESC");
+    }
+    
+    public T orderByAsc(Object column) {
+        return orderBy(column, "ASC");
+    }
+
     public T orderBy(Object column, String order) {
         clauses.add(new OrderBy(column, order == null ? "ASC" : order, table, getDatabase().getMigrationType()));
         return (T) this;
@@ -309,6 +319,10 @@ public class Query<T extends Query> {
         return where("AND", column, "=", values);
     }
 
+    public T orIsNull(Class<? extends Model> table, String column) {
+        return where("OR", parseColumn(table, column), "IS NULL", null, false, false);
+    }
+
     public T orIsNull(String column) {
         return where("OR", column, "IS NULL", null, false, false);
     }
@@ -321,12 +335,20 @@ public class Query<T extends Query> {
         return where("AND", column, "IS NOT NULL", null, false, false);
     }
 
+    public T isNotNull(Class<? extends Model> table, String column) {
+        return where("AND", parseColumn(table, column), "IS NOT NULL", null, false, false);
+    }
+
     public T orIs(String column, Object value) {
         return where(column, "IS", value);
     }
 
     public T isNull(String column) {
         return where("AND", column, "IS NULL", null, false, false);
+    }
+
+    public T isNull(Class<? extends Model> table, String column) {
+        return where("AND", parseColumn(table, column), "IS NULL", null, false, false);
     }
 
     public T is(String column, Object value) {
@@ -547,6 +569,14 @@ public class Query<T extends Query> {
         }
     }
 
+    public String parseColumn(String table, String col) {
+        return parseColumn(table, col, getDatabase().getMigrationType());
+    }
+
+    public String parseColumn(Class<? extends Model> table, String col) {
+        return parseColumn(ModelUtil.getTable(table), col, getDatabase().getMigrationType());
+    }
+
     private static void buildParam(char type, List<Clause> clauses, List<Object> objects) {
         for (Clause clause : clauses) {
 
@@ -700,7 +730,7 @@ public class Query<T extends Query> {
         database.tryExecuteReturnigGeneratedKeys(callback, build('I').toString(), buildParam('I'));
     }
 
-    public long tryExecuteUpdate() throws SQLException {
+    public long tryExecuteUpdate() throws SQLException, Exception {
         return database.tryExecuteUpdate(build('U').toString(), buildParam('U'));
     }
 
@@ -712,7 +742,7 @@ public class Query<T extends Query> {
         database.tryExecute(callback, build('C').toString(), buildParam('S'));
     }
 
-    public long tryExecuteDelete() throws SQLException {
+    public long tryExecuteDelete() throws SQLException, Exception {
         return database.tryExecuteUpdate(build('D').toString(), buildParam('D'));
     }
 

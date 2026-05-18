@@ -9,7 +9,7 @@ package github.alexozekoski.database;
  *
  * @author alexo
  */
-public interface DatabaseAction {
+public interface DatabaseListener {
 
     public void query(String query, Database database);
 }
