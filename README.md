@@ -1,5 +1,10 @@
 # Java UniversalJDBC
 
+## Documentation
+
+Complete documentation page:
+[GitHub Pages](https://alexozekoski.github.io/Database/)
+
 ## Introduction
 
 This library was developed to work genetically with a database of different types. It works with java model object and json object.
@@ -153,7 +158,7 @@ public static void main(String[] args) {
 ```
 Show internal errors
 ```java
-import github.alexozekoski.database.Log;
+import github.alexozk.database.Log;
 
 public static void main(String[] args) {
     Log.show = true;
@@ -216,9 +221,9 @@ This library also works with `Model` classes. The fields must be `public` and an
 #### Creating a model
 
 ```java
-import github.alexozekoski.database.model.Column;
-import github.alexozekoski.database.model.Model;
-import github.alexozekoski.database.model.Table;
+import github.alexozk.database.model.Column;
+import github.alexozk.database.model.Model;
+import github.alexozk.database.model.Table;
 
 @Table("users")
 public class User extends Model<User> {
@@ -327,3 +332,165 @@ public static void main(String[] args) {
 }
 ```
 
+### Global listeners
+
+You can register global listeners for a model class and receive lifecycle callbacks for every instance of that class.
+
+```java
+import com.google.gson.JsonObject;
+import github.alexozk.database.model.Model;
+import github.alexozk.database.model.ModelListenerAdapter;
+
+Model.addListener(User.class, new ModelListenerAdapter<User>() {
+
+    @Override
+    public void afterInsert(User model) {
+        System.out.println("Inserted: " + model.id);
+    }
+
+    @Override
+    public void afterUpdate(User model) {
+        System.out.println("Updated: " + model.id);
+    }
+
+    @Override
+    public void getErrors(User model, JsonObject errors, String type) {
+        System.out.println(errors);
+    }
+});
+```
+
+### Validation
+
+The library validates columns automatically using the annotations declared on the model. You can also add custom rules with `onValidateColumn`.
+
+```java
+import github.alexozk.database.model.Column;
+import github.alexozk.database.validation.Validator;
+
+@Override
+public void onValidateColumn(Column column, Object value, Validator validator) {
+    if ("email".equals(column.value()) && value != null && !value.toString().contains("@")) {
+        validator.addInvalid(1, "email is invalid");
+    }
+}
+```
+
+```java
+User user = new User();
+user.name = "John";
+user.email = "john.example.com";
+
+JsonObject errors = user.validate();
+if (errors != null) {
+    System.out.println(user.validateToString());
+}
+```
+
+### Transactions
+
+Use `executeTransaction` to group multiple operations in a single unit of work. The library creates savepoints and commits only when the block finishes successfully.
+
+```java
+try {
+    database.executeTransaction(db -> {
+        User user = new User();
+        user.setDatabase(db);
+        user.name = "John";
+        user.email = "john@example.com";
+        user.insert();
+
+        db.query().table("audit_log")
+                .set("message", "user created")
+                .update();
+    }, ex -> System.out.println(ex.getMessage()));
+} catch (Exception ex) {
+    ex.printStackTrace();
+}
+```
+
+The same API is available from `Model`:
+
+```java
+user.executeTransaction(db -> {
+    user.setDatabase(db);
+    user.save();
+});
+```
+
+### Safe thread access
+
+If the same database instance is shared between threads, wrap it with `SynchronizedDatabase`.
+
+```java
+Database database = new SynchronizedDatabase(
+        new PostgreSQL("localhost", "5432", "user", "password", "mydatabase"));
+
+database.connect();
+database.query(User.class)
+        .where("active", true)
+        .get();
+```
+
+### Connection pools
+
+The project includes two pool strategies.
+
+`PoolDatabase` keeps a fixed number of connections. The pool is created up front and `getNextDatabase()` returns
+the next synchronized database in round-robin order.
+
+`PoolDynamicDatabase` grows and shrinks the pool between a minimum and maximum size based on demand.
+Use `getAndUseNextDatabase()` to borrow a connection and `releaseDatabase()` when you are done.
+
+```java
+JsonObject config = new JsonObject();
+config.addProperty("jdbc", MySQL.JDBC);
+config.addProperty("host", "127.0.0.1");
+config.addProperty("port", "3306");
+config.addProperty("user", "root");
+config.addProperty("password", "password");
+config.addProperty("database", "mydatabase");
+
+PoolDatabase pool = new PoolDatabase("app-pool", 5, config);
+SynchronizedDatabase db = pool.getNextDatabase();
+
+PoolDynamicDatabase dynamicPool = new PoolDynamicDatabase("app-dynamic", 2, 10, config);
+SynchronizedDatabase dynamicDb = dynamicPool.getAndUseNextDatabase();
+dynamicPool.releaseDatabase(dynamicDb);
+```
+
+### Migrations and refresh
+
+The migration API can create the table, add new columns, and drop removed columns.
+
+```java
+if (database.connect()) {
+    JsonArray tables = database.tables();
+    JsonArray columns = database.columns("users");
+
+    System.out.println(tables);
+    System.out.println(columns);
+
+    Migration.migrate(database, User.class);
+}
+```
+
+To inspect the current schema update result, use `Table.update(true, true, true)`:
+
+```java
+Table table = database.migrate(User.class);
+char result = table.update(true, true, true);
+
+if (result == 'A') {
+    System.out.println("Schema changed");
+}
+```
+
+To reload the current record from the database, use `refresh()`:
+
+```java
+user.refresh();
+user.refresh("name", "email");
+```
+
+For a full rebuild, use `Migration.fresh(database, User.class);`
