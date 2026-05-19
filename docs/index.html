@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Java UniversalJDBC documentation with connection, query, model, migration, validation, transaction, and pool examples.">
+  <title>Java UniversalJDBC | Documentation</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="page-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-badge">JDBC</span>
+        <div>
+          <h1>UniversalJDBC</h1>
+          <p>Complete library documentation</p>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <a href="#introduction">Introduction</a>
+        <a href="#connection">Connection</a>
+        <a href="#query">Query Builder</a>
+        <a href="#model">Model</a>
+        <a href="#crud">CRUD</a>
+        <a href="#listeners">Listeners</a>
+        <a href="#validation">Validation</a>
+        <a href="#transaction">Transaction</a>
+        <a href="#thread">Safe Thread</a>
+        <a href="#pools">Pools</a>
+        <a href="#json">JsonObject</a>
+        <a href="#migration">Migration</a>
+        <a href="#extra">Extras</a>
+      </nav>
+
+      <div class="sidebar-note">
+        <strong>Compatibility</strong>
+        <p>Java 8, PostgreSQL, MySQL, SQLite, and Firebird.</p>
+      </div>
+    </aside>
+
+    <main class="content">
+      <section class="hero">
+        <div class="hero-copy">
+          <span class="eyebrow">Library docs</span>
+          <h2>A flexible JDBC layer for SQL, JSON, Models, and pools</h2>
+          <p>
+            This library simplifies querying, inserting, updating, and reading database results with a fluent API.
+            You can use raw SQL, a chained query builder, or model classes with annotations.
+          </p>
+          <div class="hero-actions">
+            <a class="button primary" href="https://github.com/alexozekoski/Database">View on GitHub</a>
+            <a class="button ghost" href="https://github.com/alexozekoski/Database/tree/main">Open README</a>
+          </div>
+        </div>
+
+        <div class="hero-panel">
+          <div class="stat-grid">
+            <div class="stat-card">
+              <span>Connections</span>
+              <strong>4 drivers</strong>
+            </div>
+            <div class="stat-card">
+              <span>Output</span>
+              <strong>Json / Model</strong>
+            </div>
+            <div class="stat-card">
+              <span>API</span>
+              <strong>Fluent</strong>
+            </div>
+            <div class="stat-card">
+              <span>Style</span>
+              <strong>Java 8</strong>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="introduction" class="section">
+        <div class="section-head">
+          <span>01</span>
+          <h3>Introduction</h3>
+        </div>
+        <p>
+          The project was designed to work across different database engines using the same API shape.
+          The library works with <strong>raw SQL</strong>, <strong>JSON</strong>, and annotated <strong>Model</strong> classes.
+        </p>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <h4>Query Builder</h4>
+            <p>Build queries with <code>where</code>, <code>join</code>, <code>limit</code>, and <code>orderBy</code>.</p>
+          </article>
+          <article class="feature-card">
+            <h4>Model</h4>
+            <p>Map tables to Java classes with <code>@Table</code> and <code>@Column</code>.</p>
+          </article>
+          <article class="feature-card">
+            <h4>JSON</h4>
+            <p>Receive results as <code>JsonArray</code> or <code>JsonObject</code>.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="connection" class="section">
+        <div class="section-head">
+          <span>02</span>
+          <h3>Connecting to the database</h3>
+        </div>
+        <p>
+          The library includes specific classes for each database. The common flow is: create the connection,
+          call <code>connect()</code>, run operations, and finish with <code>disconnect()</code>.
+        </p>
+
+        <div class="code-card">
+<pre class="code"><code><span class="comment">// PostgreSQL or MySQL</span>
+<span class="keyword">public class</span> <span class="type">App</span> {
+    <span class="keyword">public static void</span> <span class="function">main</span>(<span class="type">String</span>[] args) {
+        <span class="type">PostgreSQL</span> database = <span class="keyword">new</span> <span class="type">PostgreSQL</span>(
+            <span class="string">"localhost"</span>, <span class="string">"5432"</span>, <span class="string">"user"</span>, <span class="string">"password"</span>, <span class="string">"mydatabase"</span>
+        );
+
+        <span class="keyword">if</span> (database.<span class="function">connect</span>()) {
+            <span class="type">JsonArray</span> tables = database.<span class="function">tables</span>();
+            <span class="type">JsonArray</span> columns = database.<span class="function">columns</span>(<span class="string">"users"</span>);
+
+            System.out.<span class="function">println</span>(tables);
+            System.out.<span class="function">println</span>(columns);
+
+            database.<span class="function">disconnect</span>();
+        }
+    }
+}</code></pre>
+        </div>
+
+        <div class="code-card">
+<pre class="code"><code><span class="comment">// SQLite and Firebird use a file path</span>
+<span class="type">SQLite</span> sqlite = <span class="keyword">new</span> <span class="type">SQLite</span>(<span class="string">"folder/mydbfile.db"</span>);
+
+<span class="keyword">if</span> (sqlite.<span class="function">connect</span>()) {
+    <span class="type">JsonObject</span> result = sqlite.<span class="function">executeAsJsonObject</span>(<span class="string">"SELECT * FROM users"</span>);
+    System.out.<span class="function">println</span>(result);
+    sqlite.<span class="function">disconnect</span>();
+}</code></pre>
+        </div>
+      </section>
+
+      <section id="query" class="section">
+        <div class="section-head">
+          <span>03</span>
+          <h3>Query Builder</h3>
+        </div>
+        <p>
+          For more complex queries, use <code>database.query()</code> or <code>database.query(Model.class)</code>.
+          The builder supports filters, joins, grouping, sorting, and pagination.
+        </p>
+
+        <div class="code-card">
+<pre class="code"><code><span class="type">Query</span> query = database.<span class="function">query</span>()
+    .<span class="function">table</span>(<span class="string">"users"</span>)
+    .<span class="function">select</span>(<span class="string">"id"</span>, <span class="string">"name"</span>, <span class="string">"email"</span>)
+    .<span class="function">where</span>(<span class="string">"active"</span>, <span class="keyword">true</span>)
+    .<span class="function">orWhere</span>(<span class="string">"email"</span>, <span class="string">"like"</span>, <span class="string">"%@example.com"</span>)
+    .<span class="function">orderByDesc</span>(<span class="string">"id"</span>)
+    .<span class="function">limit</span>(<span class="number">10</span>);
+
+<span class="type">JsonArray</span> rows = query.<span class="function">getAsJsonArray</span>();</code></pre>
+        </div>
+
+        <div class="columns">
+          <article class="info-card">
+            <h4>Useful methods</h4>
+            <ul>
+              <li><code>where</code> and <code>orWhere</code></li>
+              <li><code>whereIn</code>, <code>whereNotIn</code>, and <code>between</code></li>
+              <li><code>join</code>, <code>leftJoin</code>, and <code>rightJoin</code></li>
+              <li><code>groupBy</code>, <code>orderBy</code>, <code>limit</code>, and <code>offset</code></li>
+            </ul>
+          </article>
+          <article class="info-card">
+            <h4>Output</h4>
+            <ul>
+              <li><code>getAsJsonArray()</code></li>
+              <li><code>getAsJsonObject()</code></li>
+              <li><code>count()</code></li>
+              <li><code>first()</code> via <code>QueryModel</code></li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section id="model" class="section">
+        <div class="section-head">
+          <span>04</span>
+          <h3>Using Model classes</h3>
+        </div>
+        <p>
+          The most practical way to use the library is through classes that extend <code>Model</code>.
+          Fields must be public and annotated with <code>@Column</code>.
+        </p>
+
+        <div class="code-card">
+<pre class="code"><code><span class="keyword">@Table</span>(<span class="string">"users"</span>)
+<span class="keyword">public class</span> <span class="type">User</span> <span class="keyword">extends</span> <span class="type">Model</span>&lt;<span class="type">User</span>&gt; {
+
+    <span class="keyword">@Column</span>(value = <span class="string">"id"</span>, primary = <span class="keyword">true</span>, serial = <span class="keyword">true</span>, insert = <span class="keyword">false</span>, update = <span class="keyword">false</span>)
+    <span class="keyword">public</span> <span class="type">Long</span> id;
+
+    <span class="keyword">@Column</span>(<span class="string">"name"</span>)
+    <span class="keyword">public</span> <span class="type">String</span> name;
+
+    <span class="keyword">@Column</span>(<span class="string">"email"</span>)
+    <span class="keyword">public</span> <span class="type">String</span> email;
+}</code></pre>
+        </div>
+
+        <div class="code-card">
+<pre class="code"><code><span class="type">QueryModel</span>&lt;<span class="type">User</span>&gt; query = database.<span class="function">query</span>(<span class="type">User</span>.<span class="keyword">class</span>);
+
+<span class="type">ModelList</span>&lt;<span class="type">User</span>&gt; users = query
+    .<span class="function">where</span>(<span class="string">"name"</span>, <span class="string">"John"</span>)
+    .<span class="function">orderByDesc</span>(<span class="string">"id"</span>)
+    .<span class="function">limit</span>(<span class="number">10</span>)
+    .<span class="function">get</span>();
+
+<span class="keyword">for</span> (<span class="type">User</span> item : users) {
+    System.out.<span class="function">println</span>(item.<span class="function">toJsonString</span>(<span class="keyword">true</span>));
+}</code></pre>
+        </div>
+
+        <div class="code-card">
+<pre class="code"><code><span class="type">User</span> first = database.<span class="function">query</span>(<span class="type">User</span>.<span class="keyword">class</span>)
+    .<span class="function">where</span>(<span class="string">"email"</span>, <span class="string">"john@example.com"</span>)
+    .<span class="function">first</span>();
+
+<span class="keyword">if</span> (first != <span class="keyword">null</span>) {
+    System.out.<span class="function">println</span>(first.<span class="function">toJsonString</span>(<span class="keyword">true</span>));
+}</code></pre>
+        </div>
+      </section>
+
+      <section id="crud" class="section">
+        <div class="section-head">
+          <span>05</span>
+          <h3>CRUD with Model</h3>
+        </div>
+        <p>
+          <code>Model</code> already includes persistence helpers. You can insert, update, delete, save, and refresh
+          records without writing SQL manually.
+        </p>
+
+        <div class="code-card">
+<pre class="code"><code><span class="type">User</span> user = <span class="keyword">new</span> <span class="type">User</span>();
+user.setDatabase(database);
+user.name = <span class="string">"John"</span>;
+user.email = <span class="string">"john@example.com"</span>;
+
+<span class="comment">// inserts when the record is new</span>
+user.<span class="function">insert</span>();
+
+<span class="comment">// updates the fields enabled for update</span>
+user.name = <span class="string">"John Doe"</span>;
+user.<span class="function">update</span>();
+
+<span class="comment">// saves using update or insert automatically</span>
+user.<span class="function">save</span>();
+
+<span class="comment">// reloads the current data from the database</span>
+user.<span class="function">refresh</span>();
+
+<span class="comment">// deletes by primary key</span>
+user.<span class="function">delete</span>();</code></pre>
+        </div>
+      </section>
+
+      <section id="listeners" class="section">
+        <div class="section-head">
+          <span>06</span>
+          <h3>Global listeners</h3>
+        </div>
+        <p>
+          The project lets you register global listeners per model class. Use <code>Model.addListener</code>
+          to receive insert, update, delete, and select events for every instance of that entity.
+        </p>
+
+        <div class="code-card">
+<pre class="code"><code><span class="keyword">import</span> com.google.gson.JsonObject;
+<span class="keyword">import</span> github.alexozk.database.model.Model;
+<span class="keyword">import</span> github.alexozk.database.model.ModelListenerAdapter;
+
+<span class="type">Model</span>.<span class="function">addListener</span>(<span class="type">User</span>.<span class="keyword">class</span>, <span class="keyword">new</span> <span class="type">ModelListenerAdapter</span>&lt;<span class="type">User</span>&gt;() {
+    <span class="annotation">@Override</span>
+    <span class="keyword">public void</span> <span class="function">afterInsert</span>(<span class="type">User</span> model) {
+        System.out.<span class="function">println</span>(<span class="string">"Inserted: "</span> + model.id);
+    }
+
+    <span class="annotation">@Override</span>
+    <span class="keyword">public void</span> <span class="function">afterUpdate</span>(<span class="type">User</span> model) {
+        System.out.<span class="function">println</span>(<span class="string">"Updated: "</span> + model.id);
+    }
+
+    <span class="annotation">@Override</span>
+    <span class="keyword">public void</span> <span class="function">getErrors</span>(<span class="type">User</span> model, <span class="type">JsonObject</span> errors, <span class="type">String</span> type) {
+        System.out.<span class="function">println</span>(errors);
+    }
+});</code></pre>
+        </div>
+
+        <div class="callout">
+          <strong>Tip:</strong> use <code>ModelListenerAdapter</code> when you only want to override the callbacks you need.
+        </div>
+      </section>
+
+      <section id="validation" class="section">
+        <div class="section-head">
+          <span>07</span>
+          <h3>Validation</h3>
+        </div>
+        <p>
+          Validation runs from the model annotations and the project's default validation rules.
+          You can also add custom validation with <code>onValidateColumn</code>.
+        </p>
+
+        <div class="code-card">
+<pre class="code"><code><span class="keyword">import</span> github.alexozk.database.model.Column;
+<span class="keyword">import</span> github.alexozk.database.validation.Validator;
+
+<span class="annotation">@Override</span>
+<span class="keyword">public void</span> <span class="function">onValidateColumn</span>(<span class="type">Column</span> column, <span class="type">Object</span> value, <span class="type">Validator</span> validator) {
+    <span class="keyword">if</span> (<span class="string">"email"</span>.<span class="function">equals</span>(column.<span class="function">value</span>()) && value != <span class="keyword">null</span> && !value.<span class="function">toString</span>().<span class="function">contains</span>(<span class="string">"@"</span>)) {
+        validator.<span class="function">addInvalid</span>(<span class="number">1</span>, <span class="string">"email is invalid"</span>);
+    }
+}</code></pre>
+        </div>
+
+        <div class="code-card">
+<pre class="code"><code><span class="type">User</span> user = <span class="keyword">new</span> <span class="type">User</span>();
+user.name = <span class="string">"John"</span>;
+user.email = <span class="string">"john.example.com"</span>;
+
+<span class="type">JsonObject</span> errors = user.<span class="function">validate</span>();
+<span class="keyword">if</span> (errors != <span class="keyword">null</span>) {
+    System.out.<span class="function">println</span>(user.<span class="function">validateToString</span>());
+}</code></pre>
+        </div>
+      </section>
+
+      <section id="transaction" class="section">
+        <div class="section-head">
+          <span>08</span>
+          <h3>Transactions</h3>
+        </div>
+        <p>
+          Use <code>executeTransaction</code> to group multiple operations in a single unit of work.
+          The database creates a savepoint and commits or rolls back depending on whether the block finishes successfully or fails.
+        </p>
+
+        <div class="code-card">
+<pre class="code"><code><span class="keyword">try</span> {
+    database.<span class="function">executeTransaction</span>(db -&gt; {
+        <span class="type">User</span> user = <span class="keyword">new</span> <span class="type">User</span>();
+        user.setDatabase(db);
+        user.name = <span class="string">"John"</span>;
+        user.email = <span class="string">"john@example.com"</span>;
+        user.<span class="function">insert</span>();
+
+        db.<span class="function">query</span>().<span class="function">table</span>(<span class="string">"audit_log"</span>)
+            .<span class="function">set</span>(<span class="string">"message"</span>, <span class="string">"user created"</span>)
+            .<span class="function">update</span>();
+    }, ex -&gt; System.out.<span class="function">println</span>(ex.<span class="function">getMessage</span>()));
+} <span class="keyword">catch</span> (<span class="type">Exception</span> ex) {
+    ex.<span class="function">printStackTrace</span>();
+}</code></pre>
+        </div>
+
+        <div class="callout">
+          <strong>Note:</strong> the same method is also available on <code>Model</code> as a shortcut to <code>getDatabase().executeTransaction(...)</code>.
+        </div>
+      </section>
+
+      <section id="thread" class="section">
+        <div class="section-head">
+          <span>09</span>
+          <h3>Safe thread access</h3>
+        </div>
+        <p>
+          For shared access across threads, use <code>SynchronizedDatabase</code>.
+          It wraps a normal database instance and exposes the same API with synchronized methods.
+        </p>
+
+        <div class="code-card">
+<pre class="code"><code><span class="keyword">import</span> github.alexozk.database.SynchronizedDatabase;
+
+<span class="type">Database</span> database = <span class="keyword">new</span> <span class="type">SynchronizedDatabase</span>(
+    <span class="keyword">new</span> <span class="type">PostgreSQL</span>(<span class="string">"localhost"</span>, <span class="string">"5432"</span>, <span class="string">"user"</span>, <span class="string">"password"</span>, <span class="string">"mydatabase"</span>)
+);
+
+database.<span class="function">connect</span>();
+database.<span class="function">query</span>(<span class="type">User</span>.<span class="keyword">class</span>)
+    .<span class="function">where</span>(<span class="string">"active"</span>, <span class="keyword">true</span>)
+    .<span class="function">get</span>();</code></pre>
+        </div>
+
+        <div class="callout">
+          <strong>When to use:</strong> when the same database object is shared by multiple routines at the same time.
+        </div>
+      </section>
+
+      <section id="pools" class="section">
+        <div class="section-head">
+          <span>10</span>
+          <h3>Connection pools</h3>
+        </div>
+        <p>
+          The project includes two pool strategies. <code>PoolDatabase</code> keeps a fixed set of pre-created connections,
+          while <code>PoolDynamicDatabase</code> grows and shrinks the pool between a minimum and maximum size based on demand.
+        </p>
+
+        <div class="columns">
+          <article class="info-card">
+            <h4>PoolDatabase</h4>
+            <p>
+              Use this when you want a fixed number of connections. The pool is created up front and
+              <code>getNextDatabase()</code> returns the next synchronized database in round-robin order.
+            </p>
+          </article>
+          <article class="info-card">
+            <h4>PoolDynamicDatabase</h4>
+            <p>
+              Use this when the connection count should vary. The pool creates new connections when demand grows,
+              and releases idle connections when it is above the configured minimum.
+            </p>
+          </article>
+        </div>
+
+        <div class="code-card">
+<pre class="code"><code><span class="comment">// Fixed-size pool</span>
+<span class="type">JsonObject</span> config = <span class="keyword">new</span> <span class="type">JsonObject</span>();
+config.<span class="function">addProperty</span>(<span class="string">"jdbc"</span>, <span class="type">MySQL</span>.<span class="type">JDBC</span>);
+config.<span class="function">addProperty</span>(<span class="string">"host"</span>, <span class="string">"127.0.0.1"</span>);
+config.<span class="function">addProperty</span>(<span class="string">"port"</span>, <span class="string">"3306"</span>);
+config.<span class="function">addProperty</span>(<span class="string">"user"</span>, <span class="string">"root"</span>);
+config.<span class="function">addProperty</span>(<span class="string">"password"</span>, <span class="string">"password"</span>);
+config.<span class="function">addProperty</span>(<span class="string">"database"</span>, <span class="string">"mydatabase"</span>);
+
+<span class="type">PoolDatabase</span> pool = <span class="keyword">new</span> <span class="type">PoolDatabase</span>(<span class="string">"app-pool"</span>, <span class="number">5</span>, config);
+<span class="type">SynchronizedDatabase</span> db = pool.<span class="function">getNextDatabase</span>();
+
+<span class="comment">// Dynamic pool with minimum and maximum connections</span>
+<span class="type">PoolDynamicDatabase</span> dynamicPool = <span class="keyword">new</span> <span class="type">PoolDynamicDatabase</span>(<span class="string">"app-dynamic"</span>, <span class="number">2</span>, <span class="number">10</span>, config);
+<span class="type">SynchronizedDatabase</span> dynamicDb = dynamicPool.<span class="function">getAndUseNextDatabase</span>();
+dynamicPool.<span class="function">releaseDatabase</span>(dynamicDb);</code></pre>
+        </div>
+
+        <div class="callout">
+          <strong>Difference:</strong> <code>PoolDatabase</code> is fixed, while <code>PoolDynamicDatabase</code> expands and contracts based on usage.
+        </div>
+      </section>
+
+      <section id="json" class="section">
+        <div class="section-head">
+          <span>11</span>
+          <h3>Queries with JsonObject</h3>
+        </div>
+        <p>
+          <code>QueryModel</code> can also build filters from a <code>JsonObject</code>,
+          which is useful when the query comes from an API or a dynamic UI.
+        </p>
+
+        <div class="code-card">
+<pre class="code"><code><span class="type">JsonObject</span> where = <span class="keyword">new</span> <span class="type">JsonObject</span>();
+where.<span class="function">addProperty</span>(<span class="string">"name"</span>, <span class="string">"John"</span>);
+where.<span class="function">addProperty</span>(<span class="string">"email"</span>, <span class="string">"john@example.com"</span>);
+
+<span class="type">ModelList</span>&lt;<span class="type">User</span>&gt; users = database.<span class="function">query</span>(<span class="type">User</span>.<span class="keyword">class</span>)
+    .<span class="function">where</span>(where)
+    .<span class="function">limit</span>(<span class="number">20</span>)
+    .<span class="function">get</span>();</code></pre>
+        </div>
+
+        <div class="callout">
+          <strong>Tip:</strong> JSON keys must match the annotated column names in the model.
+        </div>
+      </section>
+
+      <section id="migration" class="section">
+        <div class="section-head">
+          <span>12</span>
+          <h3>Migration and schema</h3>
+        </div>
+        <p>
+          The library also provides utilities to inspect and create schema. This is useful for
+          discovering tables and columns, checking schema changes, and automating model migrations.
+        </p>
+
+        <div class="code-card">
+<pre class="code"><code><span class="keyword">if</span> (database.<span class="function">connect</span>()) {
+    <span class="type">JsonArray</span> tables = database.<span class="function">tables</span>();
+    <span class="type">JsonArray</span> columns = database.<span class="function">columns</span>(<span class="string">"users"</span>);
+
+    System.out.<span class="function">println</span>(tables);
+    System.out.<span class="function">println</span>(columns);
+
+    <span class="type">Migration</span>.<span class="function">migrate</span>(database, <span class="type">User</span>.<span class="keyword">class</span>);
+}</code></pre>
+        </div>
+
+        <div class="code-card">
+<pre class="code"><code><span class="type">Table</span> table = database.<span class="function">migrate</span>(<span class="type">User</span>.<span class="keyword">class</span>);
+<span class="keyword">char</span> result = table.<span class="function">update</span>(<span class="keyword">true</span>, <span class="keyword">true</span>, <span class="keyword">true</span>);
+
+<span class="keyword">if</span> (result == <span class="string">'A'</span>) {
+    System.out.<span class="function">println</span>(<span class="string">"Schema changed"</span>);
+}</code></pre>
+        </div>
+
+        <div class="code-card">
+<pre class="code"><code><span class="type">User</span> user = <span class="keyword">new</span> <span class="type">User</span>();
+user.setDatabase(database);
+user.<span class="function">refresh</span>();
+user.<span class="function">refresh</span>(<span class="string">"name"</span>, <span class="string">"email"</span>);</code></pre>
+        </div>
+
+        <div class="callout">
+          <strong>Note:</strong> migration uses the model metadata to keep the table definition consistent.
+          If you need a full rebuild, use <code>Migration.fresh(database, ...)</code>.
+        </div>
+      </section>
+
+      <section id="extra" class="section">
+        <div class="section-head">
+          <span>13</span>
+          <h3>Extra resources</h3>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <h4>Schema listing</h4>
+            <p><code>tables()</code>, <code>columns("table")</code>, and <code>hasTable("table")</code>.</p>
+          </article>
+          <article class="feature-card">
+            <h4>Logs</h4>
+            <p>Enable internal errors with <code>Log.show = true</code>.</p>
+          </article>
+          <article class="feature-card">
+            <h4>Transactions</h4>
+            <p>Use <code>executeTransaction</code> for grouped operations.</p>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    (() => {
+      const links = Array.from(document.querySelectorAll('.nav a'));
+      const sections = links
+        .map(link => document.querySelector(link.getAttribute('href')))
+        .filter(Boolean);
+
+      const setActive = (id) => {
+        links.forEach(link => {
+          const active = link.getAttribute('href') === `#${id}`;
+          link.classList.toggle('active', active);
+          if (active) {
+            link.setAttribute('aria-current', 'location');
+          } else {
+            link.removeAttribute('aria-current');
+          }
+        });
+      };
+
+      const initial = location.hash ? location.hash.slice(1) : sections[0]?.id;
+      if (initial) {
+        setActive(initial);
+      }
+
+      const observer = new IntersectionObserver((entries) => {
+        const visible = entries
+          .filter(entry => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        if (visible) {
+          setActive(visible.target.id);
+        }
+      }, {
+        root: null,
+        threshold: [0.18, 0.3, 0.45, 0.6],
+        rootMargin: '-18% 0px -60% 0px'
+      });
+
+      sections.forEach(section => observer.observe(section));
+
+      window.addEventListener('hashchange', () => {
+        const id = location.hash.slice(1);
+        if (id) setActive(id);
+      });
+    })();
+  </script>
+</body>
+</html>
+
