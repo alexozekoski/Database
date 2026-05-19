@@ -209,4 +209,121 @@ public static void main(String[] args) {
 
 ```
 
+### Model and Query
+
+This library also works with `Model` classes. The fields must be `public` and annotated with `@Table` and `@Column`.
+
+#### Creating a model
+
+```java
+import github.alexozekoski.database.model.Column;
+import github.alexozekoski.database.model.Model;
+import github.alexozekoski.database.model.Table;
+
+@Table("users")
+public class User extends Model<User> {
+
+    @Column(value = "id", primary = true, serial = true, insert = false, update = false)
+    public Long id;
+
+    @Column("name")
+    public String name;
+
+    @Column("email")
+    public String email;
+}
+```
+
+#### Using a model to query
+
+```java
+public static void main(String[] args) {
+    PostgreSQL database = new PostgreSQL("localhost", "5432", "user", "password", "mydatabase");
+
+    if (database.connect()) {
+        User user = new User();
+        user.setDatabase(database);
+
+        ModelList<User> users = user.query()
+                .where("name", "John")
+                .orderByDesc("id")
+                .limit(10)
+                .get();
+
+        for (User item : users) {
+            System.out.println(item.toJsonString(true));
+        }
+
+        database.disconnect();
+    }
+}
+```
+
+#### Getting the first record
+
+```java
+public static void main(String[] args) {
+    PostgreSQL database = new PostgreSQL("localhost", "5432", "user", "password", "mydatabase");
+
+    if (database.connect()) {
+        User user = new User();
+        user.setDatabase(database);
+
+        User first = user.query()
+                .where("email", "john@example.com")
+                .first();
+
+        if (first != null) {
+            System.out.println(first.toJsonString(true));
+        }
+
+        database.disconnect();
+    }
+}
+```
+
+#### Query using JsonObject
+
+```java
+public static void main(String[] args) {
+    PostgreSQL database = new PostgreSQL("localhost", "5432", "user", "password", "mydatabase");
+
+    if (database.connect()) {
+        JsonObject where = new JsonObject();
+        where.addProperty("name", "John");
+        where.addProperty("email", "john@example.com");
+
+        ModelList<User> users = database.query(User.class)
+                .where(where)
+                .limit(20)
+                .get();
+
+        System.out.println(users);
+        database.disconnect();
+    }
+}
+```
+
+#### Useful query methods
+
+```java
+public static void main(String[] args) {
+    PostgreSQL database = new PostgreSQL("localhost", "5432", "user", "password", "mydatabase");
+
+    if (database.connect()) {
+        QueryModel<User> query = database.query(User.class);
+
+        query.select("id", "name");
+        query.where("name", "like", "%john%");
+        query.orWhere("email", "john@example.com");
+        query.orderByAsc("name");
+        query.limit(0, 25);
+
+        System.out.println(query.getAsJsonArray());
+        System.out.println(query.count());
+
+        database.disconnect();
+    }
+}
+```
 
