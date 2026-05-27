@@ -12,11 +12,9 @@ import github.alexozk.database.Database;
 import github.alexozk.database.DatabaseResultset;
 import github.alexozk.database.Log;
 import github.alexozk.database.migration.MigrationType;
-import github.alexozk.database.migration.SQLiteMigration;
 import github.alexozk.database.model.Model;
 import github.alexozk.database.model.ModelUtil;
 import java.lang.reflect.Array;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
@@ -367,6 +365,9 @@ public class Query<T extends Query> {
         return where("OR", column, "=", values);
     }
 
+    public T where(Class table, String column, Object value) {
+        return where(parseColumn(table, column), "=", value);
+    }
     public T where(String column, Object value) {
         return where(column, "=", value);
     }

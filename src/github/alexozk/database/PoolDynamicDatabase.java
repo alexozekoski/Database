@@ -46,7 +46,7 @@ public class PoolDynamicDatabase {
 
     }
 
-    public synchronized SynchronizedDatabase getAndUseNextDatabase() {
+    public synchronized SynchronizedDatabase allocateNextDatabase() {
         DatabaseUse du;
         if (databases.isEmpty()) {
             du = createDatabase();
