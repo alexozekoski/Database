@@ -40,18 +40,19 @@ public class ModelSerial<T extends ModelSerial<T>> extends Model<T> implements S
     public ModelSerial(JsonObject values) {
         super(values);
     }
+    
 
     @Override
-    public void onInsert() {
+    public void executeOnInsert() {
         created = new Timestamp(new java.util.Date().getTime());
         updated = new Timestamp(new java.util.Date().getTime());
-        super.onInsert();
+        super.executeOnInsert();
     }
 
     @Override
-    public void onUpdate() {
+    public void executeOnUpdate(String[] columns) {
         updated = new Timestamp(new java.util.Date().getTime());
-        super.onUpdate();
+        super.executeOnUpdate(columns);
     }
 
     public Long getNextSequecialId() {
@@ -81,10 +82,6 @@ public class ModelSerial<T extends ModelSerial<T>> extends Model<T> implements S
         return super.update(columns);
     }
 
-//    @Override;
-//    public T get(Long id) {
-//        return query().where("id", id).first();
-//    }
     @Override
     public Long getId() {
         return id;

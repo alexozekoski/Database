@@ -218,27 +218,35 @@ public class Query<T extends Query> {
         return where("AND", column, "BETWEEN", new Object[]{a, b});
     }
 
-    public T orderBy(Object... columns) {
-        for (Object column : columns) {
+    public T orderBy(String... columns) {
+        for (String column : columns) {
             orderBy(column);
         }
         return (T) this;
     }
 
-    public T orderBy(Object column) {
+    public T orderBy(String column) {
         clauses.add(new OrderBy(column, "ASC", table, getDatabase().getMigrationType()));
         return (T) this;
     }
 
-    public T orderByDesc(Object column) {
+    public T orderByDesc(String column) {
         return orderBy(column, "DESC");
     }
-    
-    public T orderByAsc(Object column) {
+
+    public T orderByAsc(String column) {
         return orderBy(column, "ASC");
     }
 
-    public T orderBy(Object column, String order) {
+    public T orderByDesc(Class table, String column) {
+        return orderBy(parseColumn(table, column), "DESC");
+    }
+
+    public T orderByAsc(Class table, String column) {
+        return orderBy(parseColumn(table, column), "ASC");
+    }
+
+    public T orderBy(String column, String order) {
         clauses.add(new OrderBy(column, order == null ? "ASC" : order, table, getDatabase().getMigrationType()));
         return (T) this;
     }
@@ -368,6 +376,7 @@ public class Query<T extends Query> {
     public T where(Class table, String column, Object value) {
         return where(parseColumn(table, column), "=", value);
     }
+
     public T where(String column, Object value) {
         return where(column, "=", value);
     }
@@ -576,6 +585,11 @@ public class Query<T extends Query> {
 
     public String parseColumn(Class<? extends Model> table, String col) {
         return parseColumn(ModelUtil.getTable(table), col, getDatabase().getMigrationType());
+    }
+
+    public String parseColumnAs(Class<? extends Model> table, String col, String alias) {
+        return parseColumn(ModelUtil.getTable(table), col, getDatabase().getMigrationType()) + " AS "
+                + getDatabase().getMigrationType().carrot() + alias + getDatabase().getMigrationType().carrot();
     }
 
     private static void buildParam(char type, List<Clause> clauses, List<Object> objects) {

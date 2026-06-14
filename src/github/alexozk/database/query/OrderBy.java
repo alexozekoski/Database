@@ -18,7 +18,7 @@ public class OrderBy implements Clause {
     private String table;
     private MigrationType migrationType;
 
-    public OrderBy(Object column, String dir, String table, MigrationType migrationType) {
+    public OrderBy(String column, String dir, String table, MigrationType migrationType) {
         this.column = column;
         this.dir = dir;
         this.table = table;

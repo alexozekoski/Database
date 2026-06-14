@@ -12,6 +12,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import github.alexozk.database.Database;
+import github.alexozk.database.DatabaseTransaction;
 import github.alexozk.database.Log;
 import github.alexozk.database.SQLite;
 import github.alexozk.database.model.cast.Cast;
@@ -446,93 +447,120 @@ public class ModelUtil {
     }
 
     public static void insert(Model model, String... columns) throws Exception {
-        QueryModel query = model.query();
-        model.onInsert();
-        Field[] campos = getNormalColumns(model.getClass());
-        List<String> list = new ArrayList<>();
-        if (columns != null) {
-            Collections.addAll(list, columns);
-        }
-        for (Field campo : campos) {
-            Column column = campo.getAnnotation(Column.class);
-            if ((column.insert() && list.isEmpty()) || list.contains(column.value())) {
-                set(query, model, campo, column, campo.get(model));
+        model.executeTransaction((Database database) -> {
+            model.executeOnInsert();
+            QueryModel query = model.query();
+            Field[] campos = getNormalColumns(model.getClass());
+            List<String> list = new ArrayList<>();
+            if (columns != null) {
+                Collections.addAll(list, columns);
             }
-        }
-        campos = getPrimaryColumns(model.getClass());
+            for (Field campo : campos) {
+                Column column = campo.getAnnotation(Column.class);
+                if ((column.insert() && list.isEmpty()) || list.contains(column.value())) {
+                    set(query, model, campo, column, campo.get(model));
+                }
+            }
+            campos = getPrimaryColumns(model.getClass());
 
-        for (Field campo : campos) {
-            Column column = campo.getAnnotation(Column.class);
-            Object value = campo.get(model);
-            if (!column.serial() && (value != null || !column.notnull()) && ((column.insert() && list.isEmpty()) || list.contains(column.value()))) {
-                set(query, model, campo, column, value);
+            for (Field campo : campos) {
+                Column column = campo.getAnnotation(Column.class);
+                Object value = campo.get(model);
+                if (!column.serial() && (value != null || !column.notnull()) && ((column.insert() && list.isEmpty()) || list.contains(column.value()))) {
+                    set(query, model, campo, column, value);
+                }
             }
-        }
-        query.tryExecuteInsert((res) -> {
-            if (res.next()) {
-                model.fill(res);
-            }
+            query.tryExecuteInsert((res) -> {
+                if (res.next()) {
+                    model.fill(res);
+                }
+            });
+            model.executeAfterInsert();
         });
+    }
 
-        model.afterInsert();
-//        if (model.getAction() != null) {
-//            model.getAction().afterCreate(model);
-//        }
-
+    public static void select(Model model, ResultSet resultSet) throws Exception {
+        model.executeOnSelect();
+        model.fill(resultSet);
+        model.executeAfterSelect();
     }
 
     public static void refresh(Model model, String... columns) throws Exception {
-
-        QueryModel query = null;
-        if (columns == null || columns.length == 0) {
-            query = model.query(model.getClass(), model.getDatabase());
-        } else {
-            query = model.query();
-            query.select(columns);
-        }
-
-        Field[] campos = model.getPrimaryColumns();
-
-        for (Field campo : campos) {
-            Column column = campo.getAnnotation(Column.class);
-            query.where(column.value(), campo.get(model));
-        }
-        query.tryExecuteSelect((res) -> {
-            if (res.next()) {
-                model.fill(res);
+        model.executeTransaction((Database database) -> {
+            model.executeOnRefesh(columns);
+            QueryModel query = null;
+            if (columns == null || columns.length == 0) {
+                query = model.query(model.getClass(), model.getDatabase());
+            } else {
+                query = model.query();
+                query.select(columns);
             }
+
+            Field[] campos = model.getPrimaryColumns();
+
+            for (Field campo : campos) {
+                Column column = campo.getAnnotation(Column.class);
+                query.where(column.value(), campo.get(model));
+            }
+            query.tryExecuteSelect((res) -> {
+                if (res.next()) {
+                    model.fill(res);
+                }
+            });
+            model.executeAfterRefresh(columns);
         });
 
     }
 
     public static boolean update(Model model, String... columns) throws Exception {
-
-        QueryModel query = model.query();
-        model.onUpdate();
-        Field[] campos = model.getNormalColumns();
-        List<String> list = new ArrayList();
-        if (columns != null) {
-            Collections.addAll(list, columns);
-        }
-        for (Field campo : campos) {
-            Column column = campo.getAnnotation(Column.class
-            );
-            if ((column.update() && list.isEmpty()) || list.contains(column.value())) {
-                set(query, model, campo, column, campo.get(model));
+        long[] res = new long[1];
+        model.executeTransaction((Database database) -> {
+            QueryModel query = model.query();
+            model.executeOnUpdate(columns);
+            Field[] campos = model.getNormalColumns();
+            List<String> list = new ArrayList();
+            if (columns != null) {
+                Collections.addAll(list, columns);
             }
-        }
-        campos = model.getPrimaryColumns();
-
-        for (Field campo : campos) {
-            Column column = campo.getAnnotation(Column.class);
-            if ((column.update() && list.isEmpty()) || list.contains(column.value())) {
-                set(query, model, campo, column, campo.get(model));
+            for (Field campo : campos) {
+                Column column = campo.getAnnotation(Column.class
+                );
+                if ((column.update() && list.isEmpty()) || list.contains(column.value())) {
+                    set(query, model, campo, column, campo.get(model));
+                }
             }
-            query.where(column.value(), campo.get(model));
-        }
-        long res = query.tryExecuteUpdate();
-        model.afterUpdate();
-        return res > 0;
+            campos = model.getPrimaryColumns();
+
+            for (Field campo : campos) {
+                Column column = campo.getAnnotation(Column.class);
+                if ((column.update() && list.isEmpty()) || list.contains(column.value())) {
+                    set(query, model, campo, column, campo.get(model));
+                }
+                query.where(column.value(), campo.get(model));
+            }
+            res[0] = query.tryExecuteUpdate();
+            model.executeAfterUpdate(columns);
+        });
+        return res[0] > 0;
+    }
+
+    public static boolean delete(Model model) throws SQLException, Exception {
+        long[] res = new long[1];
+        model.executeTransaction((Database database) -> {
+            QueryModel query = model.query();
+            Field[] primary = model.getPrimaryColumns();
+
+            for (Field key : primary) {
+                Column col = key.getAnnotation(Column.class);
+                query.where(col.value(), ModelUtil.getQuery(model, key, true));
+            }
+            model.executeOnDelete();
+            res[0] = query.tryExecuteDelete();
+            if (res[0] > 0) {
+                model.executeAfterDelete();
+            }
+        });
+        return res[0] > 0;
     }
 
     public static void fill(Field field, Model model, List<Model> stack, Object value) {

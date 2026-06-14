@@ -10,51 +10,61 @@ import com.google.gson.JsonObject;
  *
  * @author alexo
  */
-public class ModelListenerAdapter<T> implements ModelListener<T>{
+public class ModelListenerAdapter<T> implements ModelListener<T> {
 
     @Override
     public void onInsert(T model) {
-        
+
     }
 
     @Override
-    public void onUpdate(T model) {
-        
+    public void onUpdate(T model, String[] columns) {
+
     }
 
     @Override
     public void onDelete(T model) {
-       
+
     }
 
     @Override
     public void onSelect(T model) {
-        
+
     }
 
     @Override
     public void afterSelect(T model) {
-      
+
     }
 
     @Override
-    public void afterUpdate(T model) {
-        
+    public void afterUpdate(T model, String[] columns) {
+
     }
 
     @Override
     public void afterInsert(T model) {
-        
+
     }
 
     @Override
     public void afterDelete(T model) {
-        
+
     }
 
     @Override
     public void getErrors(T model, JsonObject erros, String type) {
-        
+
     }
-    
+
+    @Override
+    public void onRefresh(T model, String[] columns) {
+
+    }
+
+    @Override
+    public void afterRefresh(T model, String[] columns) {
+
+    }
+
 }

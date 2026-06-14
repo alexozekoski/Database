@@ -13,21 +13,25 @@ import com.google.gson.JsonObject;
  */
 public interface ModelListener<T> {
 
-    public void onInsert(T model);
-
-    public void onUpdate(T model);
-
-    public void onDelete(T model);
-
     public void onSelect(T model);
 
     public void afterSelect(T model);
 
-    public void afterUpdate(T model);
+    public void onInsert(T model);
 
     public void afterInsert(T model);
 
+    public void onUpdate(T model, String[] columns);
+
+    public void afterUpdate(T model, String[] columns);
+
+    public void onDelete(T model);
+
     public void afterDelete(T model);
+
+    public void onRefresh(T model, String[] columns);
+
+    public void afterRefresh(T model, String[] columns);
 
     public void getErrors(T model, JsonObject erros, String type);
 }

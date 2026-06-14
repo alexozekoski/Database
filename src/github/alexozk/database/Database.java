@@ -667,22 +667,30 @@ public abstract class Database {
         return ob;
     }
 
-    public void executeTransaction(DatabaseTransaction databaseTransaction, DatabaseException errorCallback){
+    public void executeTransaction(DatabaseTransaction databaseTransaction, DatabaseException errorCallback) {
         try {
             executeTransaction(databaseTransaction);
         } catch (Exception ex) {
             if (errorCallback != null) {
                 errorCallback.run(ex);
-            }else{
+            } else {
                 Log.printError(ex);
             }
         }
     }
 
     public void executeTransaction(DatabaseTransaction databaseTransaction) throws Exception {
-        autoCommit = false;
         try {
-            databaseTransaction.run(this);
+            Savepoint sp = createSavepoint();
+            autoCommit = false;
+            try {
+                databaseTransaction.run(this);
+            } catch (Exception ex) {
+                rollback(sp);
+                throw ex;
+            }
+            autoCommit = true;
+            commit(sp);
         } finally {
             autoCommit = true;
         }
@@ -1118,7 +1126,6 @@ public abstract class Database {
                 total[0] = statement.executeUpdate(query);
             });
             return total[0];
-
         } catch (SQLException ex) {
             if (!isConnected() && autoReconnect && attempts < maxReconnectAttempts) {
                 tryReconnect();

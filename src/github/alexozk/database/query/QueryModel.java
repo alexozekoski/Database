@@ -68,9 +68,7 @@ public class QueryModel<M extends Model<M>> extends Query<QueryModel<M>> {
                 boolean novo = !(list.size() < pos);
                 M model = novo ? (M) Model.newInstance(classe) : list.get(pos);
                 model.setDatabase(getDatabase());
-                model.onSelect();
-                model.fill(resultset);
-                model.afterSelect();
+                ModelUtil.select(model, resultset);
                 if (novo) {
                     list.add(model);
                 }

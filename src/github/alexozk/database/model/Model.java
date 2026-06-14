@@ -349,39 +349,12 @@ public class Model<T extends Model<T>> {
     }
 
     public boolean tryDelete() throws SQLException, Exception {
-
-        QueryModel query = query();
-        Field[] primary = getPrimaryColumns();
-
-        for (Field key : primary) {
-            Column col = key.getAnnotation(Column.class
-            );
-            query.where(col.value(), ModelUtil.getQuery(this, key, true));
-        }
-        onDelete();
-        boolean res = query.tryExecuteDelete() > 0;
-        if (res) {
-            afterDelete();
-        }
-        return res;
+        return ModelUtil.delete(this);
     }
 
     public boolean delete() {
         try {
-            QueryModel query = query();
-            Field[] primary = getPrimaryColumns();
-
-            for (Field key : primary) {
-                Column col = key.getAnnotation(Column.class
-                );
-                query.where(col.value(), ModelUtil.getQuery(this, key, true));
-            }
-            onDelete();
-            boolean res = query.tryExecuteDelete() > 0;
-            if (res) {
-                afterDelete();
-            }
-            return res;
+            return tryDelete();
         } catch (Exception e) {
             Log.printError(e);
         }
@@ -392,16 +365,8 @@ public class Model<T extends Model<T>> {
         return database.query((Class<T>) getClass());
     }
 
-    public void onUpdate() {
-        List<ModelListener> actions = getListeners();
-        if (actions != null) {
-            actions.forEach((action) -> {
-                action.onUpdate(this);
-            });
-        }
-    }
-
-    public void onInsert() {
+    protected void executeOnInsert() {
+        onInsert();
         List<ModelListener> actions = getListeners();
         if (actions != null) {
             actions.forEach((action) -> {
@@ -410,43 +375,8 @@ public class Model<T extends Model<T>> {
         }
     }
 
-    public void onDelete() {
-        List<ModelListener> actions = getListeners();
-        if (actions != null) {
-            actions.forEach((action) -> {
-                action.onDelete(this);
-            });
-        }
-    }
-
-    public void onSelect() {
-        List<ModelListener> actions = getListeners();
-        if (actions != null) {
-            actions.forEach((action) -> {
-                action.onSelect(this);
-            });
-        }
-    }
-
-    public void afterSelect() {
-        List<ModelListener> actions = getListeners();
-        if (actions != null) {
-            actions.forEach((action) -> {
-                action.afterSelect(this);
-            });
-        }
-    }
-
-    public void afterUpdate() {
-        List<ModelListener> actions = getListeners();
-        if (actions != null) {
-            actions.forEach((action) -> {
-                action.afterUpdate(this);
-            });
-        }
-    }
-
-    public void afterInsert() {
+    protected void executeAfterInsert() {
+        afterInsert();
         List<ModelListener> actions = getListeners();
         if (actions != null) {
             actions.forEach((action) -> {
@@ -455,13 +385,125 @@ public class Model<T extends Model<T>> {
         }
     }
 
-    public void afterDelete() {
+    protected void executeOnSelect() {
+        onSelect();
+        List<ModelListener> actions = getListeners();
+        if (actions != null) {
+            actions.forEach((action) -> {
+                action.onSelect(this);
+            });
+        }
+    }
+
+    protected void executeAfterSelect() {
+        afterSelect();
+        List<ModelListener> actions = getListeners();
+        if (actions != null) {
+            actions.forEach((action) -> {
+                action.afterSelect(this);
+            });
+        }
+    }
+
+    protected void executeOnUpdate(String[] columns) {
+        onUpdate(columns);
+        List<ModelListener> actions = getListeners();
+        if (actions != null) {
+            actions.forEach((action) -> {
+                action.onUpdate(this, columns);
+            });
+        }
+    }
+
+    protected void executeAfterUpdate(String[] columns) {
+        afterUpdate(columns);
+        List<ModelListener> actions = getListeners();
+        if (actions != null) {
+            actions.forEach((action) -> {
+                action.afterUpdate(this, columns);
+            });
+        }
+    }
+
+    protected void executeOnDelete() {
+        onDelete();
+        List<ModelListener> actions = getListeners();
+        if (actions != null) {
+            actions.forEach((action) -> {
+                action.onDelete(this);
+            });
+        }
+    }
+
+    protected void executeAfterDelete() {
+        afterDelete();
         List<ModelListener> actions = getListeners();
         if (actions != null) {
             actions.forEach((action) -> {
                 action.afterDelete(this);
             });
         }
+    }
+
+    protected void executeOnRefesh(String[] columns) {
+        onRefresh(columns);
+        List<ModelListener> actions = getListeners();
+        if (actions != null) {
+            actions.forEach((action) -> {
+                action.afterDelete(this);
+            });
+        }
+    }
+
+    protected void executeAfterRefresh(String[] columns) {
+        afterRefresh(columns);
+        List<ModelListener> actions = getListeners();
+        if (actions != null) {
+            actions.forEach((action) -> {
+                action.afterDelete(this);
+            });
+        }
+    }
+
+    public void onSelect() {
+
+    }
+
+    public void afterSelect() {
+
+    }
+
+    public void onInsert() {
+
+    }
+
+    public void afterInsert() {
+
+    }
+
+    public void onUpdate(String[] columns) {
+
+    }
+
+    public void afterUpdate(String[] columns) {
+
+    }
+
+    public void onDelete() {
+
+    }
+
+    public void afterDelete() {
+
+    }
+    
+    
+     public void onRefresh(String[] columns) {
+
+    }
+
+    public void afterRefresh(String[] columns) {
+
     }
 
     public void executeTransaction(DatabaseTransaction databaseTransaction, DatabaseException errorCallback) {
