@@ -68,10 +68,7 @@ public abstract class Database {
 //        try {
 //           // Class.forName("org.postgresql.Driver");
 //            //Class.forName("com.mysql.jdbc.Driver");
-//            //Class.forName("org.firebirdsql.jdbc.FirebirdDriver");
 //            //Class.forName("org.sqlite.JDBC");
-//            // Class.forName("oracle.jdbc.driver.OracleDriver");
-//            // Class.forName("org.mariadb.jdbc.Driver");
 //        } catch (ClassNotFoundException ex) {
 //            Log.printError(ex);
 //        }
@@ -80,8 +77,7 @@ public abstract class Database {
     /**
      * Returns generic connection.
      *
-     * @param jdbc JSDB default jdbc name. example, firebirdsql, mysql,
-     * postgresql, sqlite
+     * @param jdbc JSDB default jdbc name. example, mysql, postgresql, sqlite
      * @param host connection host. example localhost or 192.168.0.100
      * @param port connection port. example 5432 or 3306
      * @param user connection user. example root
@@ -99,15 +95,6 @@ public abstract class Database {
             }
             case SQLite.JDBC: {
                 return new SQLite(host, port, user, password, database);
-            }
-            case FirebirdSQL.JDBC: {
-                return new FirebirdSQL(host, port, user, password, database);
-            }
-            case Oracle.JDBC: {
-                return new Oracle(host, port, user, password, database);
-            }
-            case MariaDB.JDBC: {
-                return new MariaDB(host, port, user, password, database);
             }
         }
         return null;
@@ -130,15 +117,6 @@ public abstract class Database {
             }
             case SQLite.JDBC: {
                 return new SQLite(json);
-            }
-            case FirebirdSQL.JDBC: {
-                return new FirebirdSQL(json);
-            }
-            case Oracle.JDBC: {
-                return new Oracle(json);
-            }
-            case MariaDB.JDBC: {
-                return new MariaDB(json);
             }
         }
         return null;
@@ -1054,15 +1032,14 @@ public abstract class Database {
         try {
             boolean[] exe = new boolean[1];
             executeStatement((Statement statement) -> {
-                ResultSet resultSet = statement.executeQuery(query);
+                exe[0] = statement.execute(query);
+                ResultSet resultSet = statement.getResultSet();
                 try {
-                    exe[0] = statement.execute(query);
-                } catch (Exception ex) {
-                    throw ex;
-                } finally {
                     if (resultSet != null) {
                         resultSet.close();
                     }
+                } catch (Exception ex) {
+                    throw ex;
                 }
             });
             return exe[0];
@@ -1093,15 +1070,14 @@ public abstract class Database {
         try {
             boolean[] exe = new boolean[1];
             executePreparedStatement(query, false, (PreparedStatement statement) -> {
-                ResultSet resultSet = statement.executeQuery(query);
+                exe[0] = statement.execute();
+                ResultSet resultSet = statement.getResultSet();
                 try {
-                    exe[0] = statement.execute();
-                } catch (Exception ex) {
-                    throw ex;
-                } finally {
                     if (resultSet != null) {
                         resultSet.close();
                     }
+                } catch (Exception ex) {
+                    throw ex;
                 }
             }, param);
             return exe[0];

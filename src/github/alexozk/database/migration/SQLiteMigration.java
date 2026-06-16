@@ -11,6 +11,11 @@ package github.alexozk.database.migration;
  */
 public class SQLiteMigration implements MigrationType {
 
+    private static final String[] OPERATORS = {
+        "=", "<>", ">", "<", ">=", "<=", "LIKE", "NOT LIKE", "GLOB", "BETWEEN", "IS",
+        "IS NULL", "IS NOT NULL", "IN", "NOT IN", "REGEXP", "MATCH"
+    };
+
     @Override
     public String varchar(int size) {
         return "VARCHAR(" + size + ")";
@@ -132,6 +137,11 @@ public class SQLiteMigration implements MigrationType {
     @Override
     public String dropIndex(String index, String table, String... columns) {
         return "DROP INDEX \"" + index + "\"";
+    }
+
+    @Override
+    public String[] operators() {
+        return OPERATORS;
     }
 
     @Override

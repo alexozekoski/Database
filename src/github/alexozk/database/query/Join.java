@@ -30,9 +30,7 @@ public class Join implements Clause {
         StringBuilder sb = new StringBuilder();
         sb.append(join);
         sb.append(" ");
-        sb.append(migrationType.carrot());
-        sb.append(table);
-        sb.append(migrationType.carrot());
+        sb.append(Query.parseColumn(null, table, migrationType));
         sb.append(" ON ");
         sb.append(query);
         return sb.toString();

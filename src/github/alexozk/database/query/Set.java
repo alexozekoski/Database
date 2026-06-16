@@ -49,7 +49,8 @@ public class Set implements Clause {
 //    }
     @Override
     public String query(char type) {
-        return type == 'U' ? migrationType.carrot() + name + migrationType.carrot() + " = ?" : migrationType.carrot() + name + migrationType.carrot();
+        String column = Query.parseColumn(null, name, migrationType);
+        return type == 'U' ? column + " = ?" : column;
     }
 
     @Override

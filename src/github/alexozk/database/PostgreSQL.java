@@ -84,7 +84,7 @@ public class PostgreSQL extends Database {
 
         Process p = null;
         String linha = "";
-        ProcessBuilder pb = new ProcessBuilder("pg_dump", "-h", host, "-U", database, "-p", port, "-F", "c", "-b", "-v", "-f", file.getCanonicalPath(), user);
+        ProcessBuilder pb = new ProcessBuilder("pg_dump", "-h", host, "-U", user, "-p", port, "-F", "c", "-b", "-v", "-f", file.getCanonicalPath(), database);
         pb.environment().put("PGPASSWORD", password);
 
         pb.redirectErrorStream(true);
@@ -92,6 +92,11 @@ public class PostgreSQL extends Database {
         BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
         while ((linha = reader.readLine()) != null) {
             System.out.println(linha);
+        }
+        try {
+            p.waitFor();
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
         }
     }
 

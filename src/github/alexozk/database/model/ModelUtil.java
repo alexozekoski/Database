@@ -242,7 +242,7 @@ public class ModelUtil {
                     table = column.foreign();
                     key = column.key();
                 }
-                joins.add(new Join("INNER JOIN", table, Query.parseColumn(table, key, database.getMigrationType()) + " = " + column.value(), database.getMigrationType()));
+                joins.add(new Join("INNER JOIN", table, Query.parseColumn(table, key, database.getMigrationType()) + " = " + Query.parseColumn(ModelUtil.getTable(model), column.value(), database.getMigrationType()), database.getMigrationType()));
             }
         }
         return joins.toArray(Join[]::new);

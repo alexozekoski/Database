@@ -113,13 +113,13 @@ Creating a simple connection and testing if it was closed correctly.
 
 ```java
 public static void main(String[] args) {
-    FirebirdSQL firebirdSQL = new FirebirdSQL("folder/myfile.db");
+    SQLite sqlite = new SQLite("folder/myfile.db");
     
-    if(firebirdSQL.connect())
+    if (sqlite.connect())
     {
-        System.out.println(firebirdSQL.executeAsJsonArray("SELECT * FROM table"));
+        System.out.println(sqlite.executeAsJsonArray("SELECT * FROM table"));
         
-        if(firebirdSQL.disconnect())
+        if (sqlite.disconnect())
         {
             System.out.println("Disconnected successfully");
         }
@@ -294,13 +294,40 @@ public static void main(String[] args) {
     PostgreSQL database = new PostgreSQL("localhost", "5432", "user", "password", "mydatabase");
 
     if (database.connect()) {
+        JsonObject query = new JsonObject();
+
+        JsonArray select = new JsonArray();
+        select.add("id");
+        select.add("name");
+        select.add("email");
+        query.add("select", select);
+
         JsonObject where = new JsonObject();
         where.addProperty("name", "John");
-        where.addProperty("email", "john@example.com");
+
+        JsonObject email = new JsonObject();
+        email.addProperty("operator", "IS NULL");
+        where.add("email", email);
+
+        JsonObject grouped = new JsonObject();
+        JsonObject age = new JsonObject();
+        age.addProperty("operator", ">");
+        age.addProperty("value", 18);
+        grouped.add("age", age);
+        where.add("()", grouped);
+
+        query.add("where", where);
+
+        JsonObject orderBy = new JsonObject();
+        orderBy.addProperty("name", "asc");
+        orderBy.addProperty("created", "desc");
+        query.add("orderBy", orderBy);
+
+        query.addProperty("limit", 20);
+        query.addProperty("offset", 0);
 
         ModelList<User> users = database.query(User.class)
-                .where(where)
-                .limit(20)
+                .query(query)
                 .get();
 
         System.out.println(users);
@@ -308,6 +335,21 @@ public static void main(String[] args) {
     }
 }
 ```
+
+You can also pass direct filters at the top level and the library will treat them as `WHERE` clauses:
+
+```java
+JsonObject query = new JsonObject();
+query.addProperty("name", "John");
+query.addProperty("active", true);
+
+ModelList<User> users = database.query(User.class)
+        .query(query)
+        .get();
+```
+
+Supported query keys include `select`, `where`, `groupBy`, `orderBy`, `limit`, `offset`, `join` and `joins`.
+Any other top-level key is interpreted as a `WHERE` filter.
 
 #### Useful query methods
 

@@ -17,7 +17,9 @@ import github.alexozk.database.model.ModelUtil;
 import java.lang.reflect.Array;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Locale;
 import java.util.List;
+import java.util.regex.Pattern;
 
 /**
  *
@@ -25,6 +27,8 @@ import java.util.List;
  * @param <T>
  */
 public class Query<T extends Query> {
+
+    private static final Pattern IDENTIFIER = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*");
 
     private List<Clause> clauses = new ArrayList();
 
@@ -127,6 +131,13 @@ public class Query<T extends Query> {
         return (T) this;
     }
 
+    public T selectRaw(String... columns) {
+        for (String column : columns) {
+            clauses.add(new Column(column, table, getDatabase().getMigrationType(), true));
+        }
+        return (T) this;
+    }
+
     public T set(String column, Object value) {
         clauses.add(new Set(column, value, getDatabase().getMigrationType()));
         return (T) this;
@@ -182,7 +193,7 @@ public class Query<T extends Query> {
     }
 
     public T join(String join, String localtable, String foreignTable, String localColumn, String foreignColumn) {
-        return (T) joinRaw(join, foreignTable, Query.parseColumn(localtable, localColumn, getDatabase().getMigrationType()) + " = " + Query.parseColumn(foreignTable, foreignColumn, getDatabase().getMigrationType()));
+        return (T) joinRaw(normalizeJoin(join), foreignTable, Query.parseColumn(localtable, localColumn, getDatabase().getMigrationType()) + " = " + Query.parseColumn(foreignTable, foreignColumn, getDatabase().getMigrationType()));
     }
 
     public T join(Class table, String query) {
@@ -247,7 +258,7 @@ public class Query<T extends Query> {
     }
 
     public T orderBy(String column, String order) {
-        clauses.add(new OrderBy(column, order == null ? "ASC" : order, table, getDatabase().getMigrationType()));
+        clauses.add(new OrderBy(column, normalizeOrder(order), table, getDatabase().getMigrationType()));
         return (T) this;
     }
 
@@ -409,7 +420,7 @@ public class Query<T extends Query> {
             prefix = null;
         }
 
-        clauses.add(new Where(prefix, column, operator, value, raw, table, getDatabase().getMigrationType(), hasValue, whereLevel));
+        clauses.add(new Where(normalizePrefix(prefix), column, normalizeOperator(operator, raw, getDatabase().getMigrationType()), value, raw, table, getDatabase().getMigrationType(), hasValue, whereLevel));
         return (T) this;
     }
 
@@ -570,13 +581,82 @@ public class Query<T extends Query> {
     }
 
     public static String parseColumn(String table, String col, MigrationType type) {
-        if (!col.matches("\\w+")) {
-            return col;
-        } else {
-            String pref = table != null ? type.carrot() + table + type.carrot() + "." : "";
-            col = pref + type.carrot() + col + type.carrot();
-            return col;
+        if (col == null) {
+            return null;
         }
+        if ("*".equals(col)) {
+            if (table == null || table.isEmpty()) {
+                return "*";
+            }
+            return quoteIdentifierPath(table, type) + ".*";
+        }
+        if (col.contains(".")) {
+            return quoteIdentifierPath(col, type);
+        }
+        String quotedColumn = quoteIdentifier(col, type);
+        if (table == null || table.isEmpty()) {
+            return quotedColumn;
+        }
+        return quoteIdentifierPath(table, type) + "." + quotedColumn;
+    }
+
+    private static String normalizePrefix(String prefix) {
+        if (prefix == null) {
+            return null;
+        }
+        String value = prefix.trim().toUpperCase(Locale.ROOT);
+        if (!"AND".equals(value) && !"OR".equals(value)) {
+            throw new IllegalArgumentException("Unsupported WHERE prefix: " + prefix);
+        }
+        return value;
+    }
+
+    private static String normalizeJoin(String join) {
+        if (join == null) {
+            throw new IllegalArgumentException("JOIN type cannot be null");
+        }
+        String value = join.trim().toUpperCase(Locale.ROOT);
+        if (!"INNER JOIN".equals(value) && !"LEFT JOIN".equals(value) && !"RIGHT JOIN".equals(value)) {
+            throw new IllegalArgumentException("Unsupported JOIN type: " + join);
+        }
+        return value;
+    }
+
+    private static String normalizeOrder(String order) {
+        String value = order == null ? "ASC" : order.trim().toUpperCase(Locale.ROOT);
+        if (!"ASC".equals(value) && !"DESC".equals(value)) {
+            throw new IllegalArgumentException("Unsupported ORDER BY direction: " + order);
+        }
+        return value;
+    }
+
+    private static String normalizeOperator(String operator, boolean raw, MigrationType migrationType) {
+        if (raw) {
+            return operator;
+        }
+        return migrationType.normalizeOperator(operator);
+    }
+
+    private static String quoteIdentifier(String identifier, MigrationType type) {
+        if (identifier == null || identifier.isEmpty()) {
+            throw new IllegalArgumentException("Identifier cannot be empty");
+        }
+        if (!IDENTIFIER.matcher(identifier).matches()) {
+            throw new IllegalArgumentException("Unsafe SQL identifier: " + identifier);
+        }
+        return type.carrot() + identifier + type.carrot();
+    }
+
+    private static String quoteIdentifierPath(String identifier, MigrationType type) {
+        String[] parts = identifier.split("\\.");
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < parts.length; i++) {
+            if (i > 0) {
+                sb.append(".");
+            }
+            sb.append(quoteIdentifier(parts[i], type));
+        }
+        return sb.toString();
     }
 
     public String parseColumn(String table, String col) {
@@ -782,7 +862,7 @@ public class Query<T extends Query> {
     public long tryCountDistinct(String column) throws SQLException, Exception {
         long[] value = new long[1];
         List<Clause> rem = clearSelects();
-        select("DISTINCT count(" + getDatabase().getMigrationType().carrot() + column + getDatabase().getMigrationType().carrot() + ")");
+        selectRaw("DISTINCT count(" + parseColumn(null, column, getDatabase().getMigrationType()) + ")");
         tryExecuteSelect((res) -> {
             if (res.next()) {
                 value[0] = res.getLong(1);
@@ -798,7 +878,7 @@ public class Query<T extends Query> {
     public long tryCount() throws SQLException, Exception {
         long[] value = new long[1];
         List<Clause> rem = clearSelects();
-        select("count(*)");
+        selectRaw("count(*)");
         tryExecuteSelect((res) -> {
             if (res.next()) {
                 value[0] = res.getLong(1);
@@ -891,7 +971,7 @@ public class Query<T extends Query> {
                         sb.append(value.getAsNumber());
                     } else {
                         sb.append("'");
-                        sb.append(value.getAsString());
+                        sb.append(escapeSqlLiteral(value.getAsString()));
                         sb.append("'");
                     }
                 }
@@ -902,5 +982,12 @@ public class Query<T extends Query> {
         } else {
             return null;
         }
+    }
+
+    private static String escapeSqlLiteral(String value) {
+        if (value == null) {
+            return null;
+        }
+        return value.replace("'", "''");
     }
 }

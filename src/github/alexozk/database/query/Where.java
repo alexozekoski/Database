@@ -48,48 +48,47 @@ public class Where implements Clause {
 
     @Override
     public String query(char type) {
-        String where = raw ? column : Query.parseColumn(table, column, migrationType);
+        if (raw) {
+            return column;
+        }
+        String where = Query.parseColumn(table, column, migrationType);
+        String op = operator == null ? "=" : operator;
         if (value != null && value.getClass().isArray()) {
-            if (!raw) {
-                if (operator.equals("BETWEEN")) {
-                    where += " BETWEEN ? AND ?";
-                } else {
-                    String param = "";
-                    for (int i = 0; i < Array.getLength(value); i++) {
-                        if (param.isEmpty()) {
-                            param = "?";
-                        } else {
-                            param += ", ?";
-                        }
-                    }
-                    where += " " + (operator.equals("=") ? "IN" : "NOT IN") + " (" + param + ")";
-                }
+            if ("BETWEEN".equals(op)) {
+                where += " BETWEEN ? AND ?";
+            } else if ("=".equals(op) || "IN".equals(op)) {
+                where += " IN (" + buildPlaceholders(Array.getLength(value)) + ")";
+            } else if ("<>".equals(op) || "NOT IN".equals(op)) {
+                where += " NOT IN (" + buildPlaceholders(Array.getLength(value)) + ")";
+            } else {
+                throw new IllegalArgumentException("Unsupported operator for array value: " + op);
             }
         } else if (value != null && value instanceof List) {
             List list = (List) value;
-            String param = "";
-            for (int i = 0; i < list.size(); i++) {
-                if (param.isEmpty()) {
-                    param = "?";
-                } else {
-                    param += ", ?";
-                }
-            }
-            where += " " + (operator.equals("=") ? "IN" : "NOT IN") + " (" + param + ")";
-        } else {
-            if (!hasValue(type)) {
-                where += " " + operator;
+            if ("=".equals(op) || "IN".equals(op)) {
+                where += " IN (" + buildPlaceholders(list.size()) + ")";
+            } else if ("<>".equals(op) || "NOT IN".equals(op)) {
+                where += " NOT IN (" + buildPlaceholders(list.size()) + ")";
             } else {
-                where += " " + operator + " ?";
+                throw new IllegalArgumentException("Unsupported operator for list value: " + op);
             }
-
+        } else if (!hasValue(type)) {
+            where += " " + op;
+        } else {
+            where += " " + op + " ?";
         }
-
-//        if (prefix != null) {;
-//            where = prefix + " " + where;
-//        }
-
         return where;
+    }
+
+    private static String buildPlaceholders(int total) {
+        StringBuilder param = new StringBuilder();
+        for (int i = 0; i < total; i++) {
+            if (i > 0) {
+                param.append(", ");
+            }
+            param.append("?");
+        }
+        return param.toString();
     }
 
     @Override

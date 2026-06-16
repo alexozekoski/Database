@@ -5,6 +5,8 @@
  */
 package github.alexozk.database.migration;
 
+import java.util.Locale;
+
 /**
  *
  * @author alexo
@@ -60,6 +62,34 @@ public interface MigrationType {
     public String createIndex(String index, String table, String... columns);
 
     public String dropIndex(String index, String table, String... columns);
+
+    public String[] operators();
+
+    public default boolean allowsOperator(String operator) {
+        if (operator == null) {
+            return false;
+        }
+        for (String allowed : operators()) {
+            if (allowed != null && allowed.equalsIgnoreCase(operator)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public default String normalizeOperator(String operator) {
+        if (operator == null) {
+            return "=";
+        }
+        String value = operator.trim().toUpperCase(Locale.ROOT);
+        if ("!=".equals(value)) {
+            value = "<>";
+        }
+        if (!allowsOperator(value)) {
+            throw new IllegalArgumentException("Unsupported SQL operator: " + operator);
+        }
+        return value;
+    }
 
 //    public String createForeignKey(String index, String table, String column);
 //

@@ -277,9 +277,6 @@ public class Column {
         if (unique) {
             row += " UNIQUE";
         }
-        if (autoincrement) {
-            row += " UNIQUE";
-        }
         if (primary) {
             row += " PRIMARY KEY";
         }

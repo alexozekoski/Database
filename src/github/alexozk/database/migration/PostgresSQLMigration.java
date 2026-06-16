@@ -11,6 +11,12 @@ package github.alexozk.database.migration;
  */
 public class PostgresSQLMigration implements MigrationType {
 
+    private static final String[] OPERATORS = {
+        "=", "<>", ">", "<", ">=", "<=", "LIKE", "NOT LIKE", "ILIKE", "NOT ILIKE", "BETWEEN", "IS",
+        "IS NULL", "IS NOT NULL", "IN", "NOT IN", "SIMILAR TO", "~", "~*",
+        "!~", "!~*"
+    };
+
     @Override
     public String varchar(int size) {
         return "VARCHAR(" + size + ")";
@@ -132,6 +138,11 @@ public class PostgresSQLMigration implements MigrationType {
     @Override
     public String dropIndex(String index, String table, String... columns) {
         return "DROP INDEX \"" + index + "\"";
+    }
+
+    @Override
+    public String[] operators() {
+        return OPERATORS;
     }
 
     @Override
