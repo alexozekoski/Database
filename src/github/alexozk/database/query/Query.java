@@ -29,6 +29,7 @@ import java.util.regex.Pattern;
 public class Query<T extends Query> {
 
     private static final Pattern IDENTIFIER = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*");
+    private static final Pattern SELECT_AS = Pattern.compile("(?i)\\s+AS\\s+");
 
     private List<Clause> clauses = new ArrayList();
 
@@ -126,7 +127,7 @@ public class Query<T extends Query> {
 
     public T select(String... columns) {
         for (String column : columns) {
-            clauses.add(new Column(column, table, getDatabase().getMigrationType()));
+            clauses.add(new Column(normalizeSelectColumn(column, getDatabase().getMigrationType()), table, getDatabase().getMigrationType(), isRawSelectExpression(column)));
         }
         return (T) this;
     }
@@ -136,6 +137,17 @@ public class Query<T extends Query> {
             clauses.add(new Column(column, table, getDatabase().getMigrationType(), true));
         }
         return (T) this;
+    }
+
+    public T selectAs(Class<? extends Model> table, String column, String alias) {
+        return selectRaw(parseColumnAs(table, column, alias));
+    }
+
+    public T selectAs(String column, String alias) {
+        if (table == null || table.isEmpty()) {
+            throw new IllegalStateException("Cannot use selectAs without a base table");
+        }
+        return selectRaw(parseColumnAs(table, column, alias));
     }
 
     public T set(String column, Object value) {
@@ -638,6 +650,7 @@ public class Query<T extends Query> {
     }
 
     private static String quoteIdentifier(String identifier, MigrationType type) {
+        identifier = normalizeIdentifier(identifier);
         if (identifier == null || identifier.isEmpty()) {
             throw new IllegalArgumentException("Identifier cannot be empty");
         }
@@ -645,6 +658,61 @@ public class Query<T extends Query> {
             throw new IllegalArgumentException("Unsafe SQL identifier: " + identifier);
         }
         return type.carrot() + identifier + type.carrot();
+    }
+
+    private static String normalizeIdentifier(String identifier) {
+        if (identifier == null) {
+            return null;
+        }
+        String value = identifier.trim();
+        if (value.length() >= 2) {
+            char first = value.charAt(0);
+            char last = value.charAt(value.length() - 1);
+            boolean quotedByDouble = first == '"' && last == '"';
+            boolean quotedByBacktick = first == '`' && last == '`';
+            boolean quotedBySingle = first == '\'' && last == '\'';
+            if (quotedByDouble || quotedByBacktick || quotedBySingle) {
+                value = value.substring(1, value.length() - 1).trim();
+            }
+        }
+        return value;
+    }
+
+    private static boolean isRawSelectExpression(String expression) {
+        return expression != null && SELECT_AS.split(expression, 2).length == 2;
+    }
+
+    private static String normalizeSelectColumn(String expression, MigrationType type) {
+        if (expression == null) {
+            return null;
+        }
+        String value = expression.trim();
+        String[] parts = SELECT_AS.split(value, 2);
+        if (parts.length == 1) {
+            return value;
+        }
+        String column = normalizeIdentifierPath(parts[0], type);
+        String alias = quoteIdentifier(parts[1], type);
+        return column + " AS " + alias;
+    }
+
+    private static String normalizeIdentifierPath(String identifier, MigrationType type) {
+        if (identifier == null) {
+            return null;
+        }
+        String value = identifier.trim();
+        if (value.isEmpty()) {
+            throw new IllegalArgumentException("Identifier cannot be empty");
+        }
+        String[] parts = value.split("\\.");
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < parts.length; i++) {
+            if (i > 0) {
+                sb.append(".");
+            }
+            sb.append(quoteIdentifier(parts[i], type));
+        }
+        return sb.toString();
     }
 
     private static String quoteIdentifierPath(String identifier, MigrationType type) {
@@ -669,7 +737,12 @@ public class Query<T extends Query> {
 
     public String parseColumnAs(Class<? extends Model> table, String col, String alias) {
         return parseColumn(ModelUtil.getTable(table), col, getDatabase().getMigrationType()) + " AS "
-                + getDatabase().getMigrationType().carrot() + alias + getDatabase().getMigrationType().carrot();
+                + quoteIdentifier(alias, getDatabase().getMigrationType());
+    }
+
+    public String parseColumnAs(String table, String col, String alias) {
+        return parseColumn(table, col, getDatabase().getMigrationType()) + " AS "
+                + quoteIdentifier(alias, getDatabase().getMigrationType());
     }
 
     private static void buildParam(char type, List<Clause> clauses, List<Object> objects) {

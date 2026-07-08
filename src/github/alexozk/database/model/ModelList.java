@@ -143,5 +143,15 @@ public class ModelList<T extends Model<T>> extends ArrayList<T> {
             }
         }
     }
+    public void set(JsonArray json, boolean force) {
+        for (int i = 0; i < json.size(); i++) {
+            JsonObject ob = json.get(i).getAsJsonObject();
+            if (ob != null && ob.isJsonObject()) {
+                T no = (T) Model.newInstance(classe);
+                no.set(ob, force);
+                add(no);
+            }
+        }
+    }
 
 }
