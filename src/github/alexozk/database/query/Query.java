@@ -30,6 +30,7 @@ public class Query<T extends Query> {
 
     private static final Pattern IDENTIFIER = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*");
     private static final Pattern SELECT_AS = Pattern.compile("(?i)\\s+AS\\s+");
+    private static final Pattern SQL_FUNCTION = Pattern.compile("(?i)^[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*\\s*\\(.*\\)$");
 
     private List<Clause> clauses = new ArrayList();
 
@@ -679,7 +680,42 @@ public class Query<T extends Query> {
     }
 
     private static boolean isRawSelectExpression(String expression) {
-        return expression != null && SELECT_AS.split(expression, 2).length == 2;
+        if (expression == null) {
+            return false;
+        }
+        String value = expression.trim();
+        if (value.isEmpty()) {
+            return false;
+        }
+        return SELECT_AS.split(value, 2).length == 2 || isSqlFunctionExpression(value);
+    }
+
+    static boolean isSimpleIdentifierExpression(String expression) {
+        if (expression == null) {
+            return false;
+        }
+        String value = normalizeIdentifier(expression);
+        if (value == null || value.isEmpty()) {
+            return false;
+        }
+        if ("*".equals(value)) {
+            return true;
+        }
+        String[] parts = value.split("\\.");
+        for (String part : parts) {
+            if (!"*".equals(part) && !IDENTIFIER.matcher(part).matches()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    static boolean isSqlFunctionExpression(String expression) {
+        if (expression == null) {
+            return false;
+        }
+        String value = expression.trim();
+        return !value.isEmpty() && SQL_FUNCTION.matcher(value).matches();
     }
 
     private static String normalizeSelectColumn(String expression, MigrationType type) {
@@ -691,7 +727,10 @@ public class Query<T extends Query> {
         if (parts.length == 1) {
             return value;
         }
-        String column = normalizeIdentifierPath(parts[0], type);
+        String column = parts[0].trim();
+        if (isSimpleIdentifierExpression(column)) {
+            column = normalizeIdentifierPath(column, type);
+        }
         String alias = quoteIdentifier(parts[1], type);
         return column + " AS " + alias;
     }

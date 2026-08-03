@@ -28,7 +28,14 @@ public class GroupBy implements Clause {
     @Override
     public String query(char type) {
         if (column instanceof String) {
-            return Query.parseColumn(table, (String) column, migrationType);
+            String value = (String) column;
+            if (Query.isSimpleIdentifierExpression(value)) {
+                return Query.parseColumn(table, value, migrationType);
+            }
+            if (Query.isSqlFunctionExpression(value)) {
+                return value;
+            }
+            return Query.parseColumn(table, value, migrationType);
         }
         return column.toString();
     }

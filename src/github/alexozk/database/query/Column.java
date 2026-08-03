@@ -34,7 +34,16 @@ public class Column implements Clause {
 
     @Override
     public String query(char type) {
-        return raw ? name : Query.parseColumn(table, name, migrationType);
+        if (raw) {
+            return name;
+        }
+        if (Query.isSimpleIdentifierExpression(name)) {
+            return Query.parseColumn(table, name, migrationType);
+        }
+        if (Query.isSqlFunctionExpression(name)) {
+            return name;
+        }
+        return Query.parseColumn(table, name, migrationType);
     }
 
     @Override

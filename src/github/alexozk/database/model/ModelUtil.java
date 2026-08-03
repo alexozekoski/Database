@@ -447,8 +447,9 @@ public class ModelUtil {
     }
 
     public static void insert(Model model, String... columns) throws Exception {
+        model.executeOnInsert();
         model.executeTransaction((Database database) -> {
-            model.executeOnInsert();
+
             QueryModel query = model.query();
             Field[] campos = getNormalColumns(model.getClass());
             List<String> list = new ArrayList<>();
@@ -475,8 +476,9 @@ public class ModelUtil {
                     model.fill(res);
                 }
             });
-            model.executeAfterInsert();
+
         });
+        model.executeAfterInsert();
     }
 
     public static void select(Model model, ResultSet resultSet) throws Exception {
@@ -486,8 +488,9 @@ public class ModelUtil {
     }
 
     public static void refresh(Model model, String... columns) throws Exception {
+        model.executeOnRefesh(columns);
         model.executeTransaction((Database database) -> {
-            model.executeOnRefesh(columns);
+
             QueryModel query = null;
             if (columns == null || columns.length == 0) {
                 query = model.query(model.getClass(), model.getDatabase());
@@ -507,16 +510,17 @@ public class ModelUtil {
                     model.fill(res);
                 }
             });
-            model.executeAfterRefresh(columns);
-        });
 
+        });
+        model.executeAfterRefresh(columns);
     }
 
     public static boolean update(Model model, String... columns) throws Exception {
         long[] res = new long[1];
+        model.executeOnUpdate(columns);
         model.executeTransaction((Database database) -> {
             QueryModel query = model.query();
-            model.executeOnUpdate(columns);
+
             Field[] campos = model.getNormalColumns();
             List<String> list = new ArrayList();
             if (columns != null) {
@@ -539,13 +543,15 @@ public class ModelUtil {
                 query.where(column.value(), campo.get(model));
             }
             res[0] = query.tryExecuteUpdate();
-            model.executeAfterUpdate(columns);
+
         });
+        model.executeAfterUpdate(columns);
         return res[0] > 0;
     }
 
     public static boolean delete(Model model) throws SQLException, Exception {
         long[] res = new long[1];
+        model.executeOnDelete();
         model.executeTransaction((Database database) -> {
             QueryModel query = model.query();
             Field[] primary = model.getPrimaryColumns();
@@ -554,12 +560,12 @@ public class ModelUtil {
                 Column col = key.getAnnotation(Column.class);
                 query.where(col.value(), ModelUtil.getQuery(model, key, true));
             }
-            model.executeOnDelete();
+
             res[0] = query.tryExecuteDelete();
-            if (res[0] > 0) {
-                model.executeAfterDelete();
-            }
         });
+        if (res[0] > 0) {
+            model.executeAfterDelete();
+        }
         return res[0] > 0;
     }
 

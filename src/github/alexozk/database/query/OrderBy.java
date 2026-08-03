@@ -28,7 +28,14 @@ public class OrderBy implements Clause {
     @Override
     public String query(char type) {
         if (column instanceof String) {
-            return Query.parseColumn(table, (String) column, migrationType) + " " + dir;
+            String value = (String) column;
+            if (Query.isSimpleIdentifierExpression(value)) {
+                return Query.parseColumn(table, value, migrationType) + " " + dir;
+            }
+            if (Query.isSqlFunctionExpression(value)) {
+                return value + " " + dir;
+            }
+            return Query.parseColumn(table, value, migrationType) + " " + dir;
         }
         return column.toString() + " " + dir;
     }
