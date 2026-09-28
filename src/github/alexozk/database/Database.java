@@ -64,15 +64,15 @@ public abstract class Database {
 
     private volatile boolean autoCommit = true;
 
-    static {
+//    static {
 //        try {
-//           // Class.forName("org.postgresql.Driver");
-//            //Class.forName("com.mysql.jdbc.Driver");
-//            //Class.forName("org.sqlite.JDBC");
+//            Class.forName("org.postgresql.Driver");
+//            Class.forName("com.mysql.jdbc.Driver");
+//            Class.forName("org.sqlite.JDBC");
 //        } catch (ClassNotFoundException ex) {
 //            Log.printError(ex);
 //        }
-    }
+//    }
 
     /**
      * Returns generic connection.

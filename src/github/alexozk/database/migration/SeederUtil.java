@@ -41,22 +41,24 @@ public abstract class SeederUtil {
         return json(database, models, input, false);
     }
 
-    public static boolean json(Database database, Class<? extends Model> model, File file) {
-        List<Class<? extends Model>> models = new ArrayList();
-        models.add(model);
-        return json(database, models, file);
+    public static boolean json(Database database, Class<? extends Model<?>> modelClass, JsonArray array) {
+        return json(database, modelClass, array, false);
     }
 
-    public static boolean json(Database database, Class<? extends Model> model, InputStream input) {
-        List<Class<? extends Model>> models = new ArrayList();
-        models.add(model);
-        return json(database, models, input);
-    }
-
-    public static boolean json(Database database, Class<? extends Model> model, InputStream input, boolean debugger) {
-        List<Class<? extends Model>> models = new ArrayList();
-        models.add(model);
-        return json(database, models, input, debugger);
+    public static boolean json(Database database, Class<? extends Model<?>> modelClass, JsonArray array, boolean debugger) {
+        try {
+            for (int i = 0; i < array.size(); i++) {
+                JsonObject ob = array.get(i).getAsJsonObject();
+                Model model = (Model) modelClass.newInstance();
+                model.setDatabase(database);
+                model.setDebugger(debugger);
+                model.create(ob);
+            }
+        } catch (Exception ex) {
+            Log.printError(ex);
+            return false;
+        }
+        return true;
     }
 
     public static boolean json(Database database, List<Class<? extends Model>> models, InputStream input, boolean debugger) {
@@ -93,9 +95,11 @@ public abstract class SeederUtil {
 
     }
 
-    ;
+    public static boolean json(Database database, List<Class<? extends Model>> models, JsonObject data) {
+        return json(database, models, data, false);
+    }
 
-    public static boolean json(Database database, List<Class<? extends Model>> models, String data, boolean debugger) {
+    public static boolean json(Database database, List<Class<? extends Model>> models, JsonObject json, boolean debugger) {
         try {
             Map<String, Class> map = new TreeMap();
             for (Class classe : models) {
@@ -103,7 +107,6 @@ public abstract class SeederUtil {
                 map.put(table, classe);
             }
 
-            JsonObject json = JsonParser.parseString(data).getAsJsonObject();
             for (String key : json.keySet()) {
                 Class classe = map.get(key);
                 if (classe != null) {
@@ -123,5 +126,9 @@ public abstract class SeederUtil {
         }
         return true;
     }
-;
+
+    public static boolean json(Database database, List<Class<? extends Model>> models, String data, boolean debugger) {
+        return json(database, models, JsonParser.parseString(data).getAsJsonObject(), debugger);
+    }
+
 }
