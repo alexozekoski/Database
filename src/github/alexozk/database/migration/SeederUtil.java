@@ -33,12 +33,23 @@ public abstract class SeederUtil {
         return DEFAULT_SEEDER_CLASS_PACKAGE.getResourceAsStream(DEFAULT_SEEDER_PATH + file);
     }
 
-    public static boolean json(Database database, List<Class<? extends Model>> models, File file) {
-        return json(database, models, file, false);
-    }
+    public static boolean json(Database database, Class<? extends Model<?>> modelClass, InputStream input) {
+        try {
+            byte[] data = new byte[1024 * 1024 * 10];
+            int rs = 0;
+            int t;
+            do {
+                t = input.read(data, rs, data.length - rs);
+                if (t != -1) {
+                    rs += t;
+                }
+            } while (rs < data.length && t > 0);
+            return json(database, modelClass, JsonParser.parseString(new String(data)).getAsJsonArray(), false);
+        } catch (Exception ex) {
+            Log.printError(ex);
+            return false;
+        }
 
-    public static boolean json(Database database, List<Class<? extends Model>> models, InputStream input) {
-        return json(database, models, input, false);
     }
 
     public static boolean json(Database database, Class<? extends Model<?>> modelClass, JsonArray array) {
@@ -93,6 +104,14 @@ public abstract class SeederUtil {
             return false;
         }
 
+    }
+
+    public static boolean json(Database database, List<Class<? extends Model>> models, File file) {
+        return json(database, models, file, false);
+    }
+
+    public static boolean json(Database database, List<Class<? extends Model>> models, InputStream input) {
+        return json(database, models, input, false);
     }
 
     public static boolean json(Database database, List<Class<? extends Model>> models, JsonObject data) {

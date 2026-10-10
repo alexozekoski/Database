@@ -12,7 +12,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import github.alexozk.database.Database;
-import github.alexozk.database.DatabaseTransaction;
 import github.alexozk.database.Log;
 import github.alexozk.database.SQLite;
 import github.alexozk.database.model.cast.Cast;
