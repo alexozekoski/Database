@@ -100,6 +100,24 @@ public interface Dialect {
 
     public String createIndex(String index, String table, String... columns);
 
+    public static String quoteName(Dialect dialect, String name) {
+        Objects.requireNonNull(name, "name");
+        if (name.isEmpty() || name.indexOf('\0') >= 0) {
+            throw new IllegalArgumentException("Identifier cannot be empty or contain NUL");
+        }
+        String quote = dialect.carrot();
+        return quote + name.replace(quote, quote + quote) + quote;
+    }
+
+    public static String createIndex(Dialect dialect, String index, String table, String... columns) {
+        List<String> names = new ArrayList<>();
+        for (String column : columns) {
+            names.add(quoteName(dialect, column));
+        }
+        return "CREATE INDEX " + quoteName(dialect, index) + " ON "
+                + quoteName(dialect, table) + "(" + String.join(", ", names) + ")";
+    }
+
     public String dropIndex(String index, String table, String... columns);
 
     public String[] operators();
@@ -115,6 +133,17 @@ public interface Dialect {
     public String addColumn(Table table, Column[] cols);
 
     public String dropColumn(Table table, Column[] cols);
+
+    public String renameColumn(Table table, Column column);
+
+    public static String renameColumn(Dialect dialect, Table table, Column column) {
+        String quote = dialect.carrot();
+        String tableName = table.getName().replace(quote, quote + quote);
+        String oldValue = column.getOldValue().replace(quote, quote + quote);
+        String newName = column.getName().replace(quote, quote + quote);
+        return "ALTER TABLE " + quote + tableName + quote + " RENAME COLUMN "
+                + quote + oldValue + quote + " TO " + quote + newName + quote + ";";
+    }
 
     public String carrot();
 

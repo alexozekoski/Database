@@ -1218,6 +1218,22 @@ public abstract class Database {
             throw ex;
         }
         meta.close();
+        try (ResultSet indexes = con.getMetaData().getIndexInfo(con.getCatalog(), null, table, false, false)) {
+            while (indexes.next()) {
+                String columnName = indexes.getString("COLUMN_NAME");
+                String indexName = indexes.getString("INDEX_NAME");
+                if (columnName == null || indexName == null) {
+                    continue;
+                }
+                for (github.alexozk.database.migration.Column column : cols) {
+                    if (column.getName().equals(columnName)) {
+                        column.setIndex(true);
+                        column.setIndexName(indexName);
+                        column.addExistingIndex(indexName);
+                    }
+                }
+            }
+        }
         return cols.toArray(new github.alexozk.database.migration.Column[cols.size()]);
     }
 

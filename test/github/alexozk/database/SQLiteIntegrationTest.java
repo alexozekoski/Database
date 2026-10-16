@@ -19,10 +19,10 @@ public final class SQLiteIntegrationTest {
         @Column(value = "id", primary = true)
         public Long id;
 
-        @Column("name")
+        @Column(value = "name", index = true)
         public String name;
 
-        @Column("age")
+        @Column(value = "age", index = true, indexName = "users_age_lookup")
         public Integer age;
 
         @Column("data")
@@ -38,11 +38,34 @@ public final class SQLiteIntegrationTest {
         public String title;
     }
 
+    @Table("renamed_users")
+    public static class RenamedUser extends Model<RenamedUser> {
+        @Column(value = "display_name", oldValue = "name")
+        public String displayName;
+    }
+
     public static void main(String[] args) throws Exception {
         SQLite database = new SQLite(":memory:");
         database.tryConnect();
         try {
+            database.tryExecuteUpdate("CREATE TABLE renamed_users (name TEXT)");
+            database.tryExecuteUpdate("INSERT INTO renamed_users (name) VALUES (?)", "Legacy name");
+            Migration.migrate(database, RenamedUser.class);
+            check(rows(database.query().table("renamed_users").where("display_name", "Legacy name")), 1,
+                    "Migration renames oldValue and preserves data");
+
             Migration.migrate(database, User.class, Team.class);
+            github.alexozk.database.migration.Table indexed = database.migrate(User.class);
+            check(indexed.getIndexColumns().length, 2, "Reads existing indexes from JDBC metadata");
+            check(indexed.getIndexColumnsQuery(), null, "Existing indexes are not recreated");
+            database.tryExecuteUpdate("DROP INDEX index_users_name");
+            indexed = database.migrate(User.class);
+            check(indexed.getIndexColumnsQuery().contains("index_users_name"), true,
+                    "Missing default index is scheduled on an existing column");
+            indexed.update();
+            Migration.migrate(database, User.class, Team.class);
+            check(database.migrate(User.class).getIndexColumnsQuery(), null,
+                    "Repeated migration keeps default and custom indexes");
             insert(database, 1, "O'Brien' OR 1=1 --", 21);
             insert(database, 2, "Maria", 30);
             insert(database, 3, null, 40);

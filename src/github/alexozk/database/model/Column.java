@@ -22,6 +22,12 @@ public @interface Column {
 
     public String name() default "";
 
+    /**
+     * Previous database column name, used by migrations to rename an existing
+     * column instead of dropping it and creating a new one.
+     */
+    public String oldValue() default "";
+
     public boolean primary() default false;
 
     public boolean notnull() default false;
@@ -59,6 +65,8 @@ public @interface Column {
     public boolean text() default false;
 
     public boolean index() default false;
+
+    public String indexName() default "";
 
     public Class listType() default Object.class;
 

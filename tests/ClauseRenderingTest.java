@@ -116,6 +116,10 @@ public final class ClauseRenderingTest {
 
     private static void dialect(Dialect d) {
         String q = d.carrot();
+        equal(d.createIndex("i" + q + "x", "t" + q + "x", "c" + q + "x"),
+                "CREATE INDEX " + q + "i" + q + q + "x" + q + " ON "
+                + q + "t" + q + q + "x" + q + "(" + q + "c" + q + q + "x" + q + ")");
+        truth(d.dropTable("t" + q + "x").contains(q + "t" + q + q + "x" + q));
         String name = q + "name" + q;
         String attack = "O'Brien' OR 1=1 --";
         check(d.where(new CreatedClause("name", "=", attack), QueryType.SELECT), name + " = ?", attack);

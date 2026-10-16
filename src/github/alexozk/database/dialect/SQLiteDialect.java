@@ -208,7 +208,7 @@ public class SQLiteDialect implements Dialect {
 
     @Override
     public String dropTable(String table) {
-        return "DROP TABLE IF EXISTS \"" + table + "\"";
+        return "DROP TABLE IF EXISTS " + Dialect.quoteName(this, table);
     }
 
     @Override
@@ -233,15 +233,7 @@ public class SQLiteDialect implements Dialect {
 
     @Override
     public String createIndex(String index, String table, String... columns) {
-        String cols = "";
-        for (String col : columns) {
-            if (cols.isEmpty()) {
-                cols = "\"" + col + "\"";
-            } else {
-                cols += ", \"" + col + "\"";
-            }
-        }
-        return "CREATE  INDEX \"" + index + "\" ON " + table + "(" + cols + ")";
+        return Dialect.createIndex(this, index, table, columns);
     }
 
     @Override
@@ -317,6 +309,11 @@ public class SQLiteDialect implements Dialect {
             sb.append(";");
         }
         return sb.toString();
+    }
+
+    @Override
+    public String renameColumn(Table table, Column column) {
+        return Dialect.renameColumn(this, table, column);
     }
 
     @Override

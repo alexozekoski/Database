@@ -524,7 +524,7 @@ user.<span class="function">refresh</span>(<span class="string">"name"</span>, <
 
         <div class="callout">
           <strong>Note:</strong> migration uses the model metadata to keep the table definition consistent.
-          If you need a full rebuild, use <code>Migration.fresh(database, ...)</code>.
+          If you need a full rebuild, use <code>Migration.recreate(database, ...)</code>. This drops and recreates the models' tables, deleting their existing rows.
         </div>
       </section>
 

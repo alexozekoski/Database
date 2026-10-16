@@ -196,6 +196,47 @@ public class Table {
         return cols.toArray(new Column[cols.size()]);
     }
 
+    /** Columns with an index requested by the model or present in the database. */
+    public Column[] getIndexColumns() {
+        List<Column> cols = new ArrayList<>();
+        for (Column column : columns) {
+            if (column.isIndex() && !column.isDeleted()) {
+                cols.add(column);
+            }
+        }
+        return cols.toArray(new Column[cols.size()]);
+    }
+
+    private String indexName(Column column) {
+        return column.getIndexName().isEmpty()
+                ? "index_" + name + "_" + column.getName() : column.getIndexName();
+    }
+
+    /** SQL for requested indexes which do not yet exist; null when none are pending. */
+    public String getIndexColumnsQuery() {
+        List<String> queries = new ArrayList<>();
+        for (Column column : getIndexColumns()) {
+            String index = indexName(column);
+            if (!column.indexExists(index)) {
+                queries.add(migration.createIndex(index, name, column.getName()) + ";");
+            }
+        }
+        return queries.isEmpty() ? null : String.join("\n", queries);
+    }
+
+    public boolean createIndexes() throws Exception {
+        boolean created = false;
+        for (Column column : getIndexColumns()) {
+            String index = indexName(column);
+            if (!column.indexExists(index)) {
+                database.tryExecuteUpdate(migration.createIndex(index, name, column.getName()));
+                column.addExistingIndex(index);
+                created = true;
+            }
+        }
+        return created;
+    }
+
     public Column[] getNonExistentColumns() {
         List<Column> cols = new ArrayList();
         for (Column col : columns) {
@@ -222,14 +263,51 @@ public class Table {
         return migration.dropColumn(this, cols);
     }
 
+    public Column[] getRenamedColumns() {
+        List<Column> cols = new ArrayList();
+        for (Column col : columns) {
+            if (col.exists() && col.getOldValue() != null) {
+                cols.add(col);
+            }
+        }
+        return cols.toArray(new Column[cols.size()]);
+    }
+
+    public String[] getRenameColumnsQueries() {
+        Column[] cols = getRenamedColumns();
+        String[] queries = new String[cols.length];
+        for (int i = 0; i < cols.length; i++) {
+            queries[i] = migration.renameColumn(this, cols[i]);
+        }
+        return queries;
+    }
+
+    public String getRenameColumnsQuery() {
+        String[] queries = getRenameColumnsQueries();
+        return queries.length == 0 ? null : String.join("\n", queries);
+    }
+
+    public boolean renameColumns() throws SQLException, Exception {
+        Column[] cols = getRenamedColumns();
+        if (cols.length == 0) {
+            return false;
+        }
+        for (Column column : cols) {
+            database.tryExecuteUpdate(migration.renameColumn(this, column));
+            column.setOldValue(null);
+        }
+        return true;
+    }
+
     public boolean alterColumns() throws SQLException, Exception {
+        Column[] addedColumns = getNonExistentColumns();
         String query = getAlterColumnsQuery();
         if (query == null) {
             return false;
         }
         database.tryExecuteUpdate(query);
-        for (Column column : columns) {
-            column.setExists(false);
+        for (Column column : addedColumns) {
+            column.setExists(true);
         }
         return true;
     }
@@ -258,7 +336,9 @@ public class Table {
             }
         } else {
             if (add) {
+                renameColumns();
                 alterColumns();
+                createIndexes();
             }
             if (drop) {
                 dropColumns();
@@ -269,12 +349,13 @@ public class Table {
     }
 
     public boolean create() throws SQLException, Exception {
-        boolean ok = database.tryExecuteUpdate(getCreateQuery()) != 0;
+        boolean ok = database.tryExecuteUpdate(getCreateQuery()) != -1;
         if (ok) {
             exists = true;
             for (Column column : columns) {
                 column.setExists(true);
             }
+            createIndexes();
         }
         return ok;
     }
@@ -308,7 +389,28 @@ public class Table {
                 if (column.getName().equals(col.value())) {
                     exist = true;
                     column.setDeleted(false);
+                    if (col.index()) {
+                        column.setIndex(true);
+                        column.setIndexName(col.indexName().isEmpty()
+                                ? "index_" + name + "_" + col.value() : col.indexName());
+                    }
                     break;
+                }
+            }
+            if (!exist && !col.oldValue().isEmpty()) {
+                for (Column column : columns) {
+                    if (column.getName().equals(col.oldValue())) {
+                        exist = true;
+                        column.setDeleted(false);
+                        column.setOldValue(col.oldValue());
+                        column.setName(col.value());
+                        if (col.index()) {
+                            column.setIndex(true);
+                            column.setIndexName(col.indexName().isEmpty()
+                                    ? "index_" + name + "_" + col.value() : col.indexName());
+                        }
+                        break;
+                    }
                 }
             }
             if (!exist) {

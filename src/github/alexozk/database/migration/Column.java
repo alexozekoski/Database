@@ -23,6 +23,8 @@ public class Column {
 
     private String name = null;
 
+    private String oldValue = null;
+
     private String type = null;
 
     private boolean notnull = false;
@@ -49,6 +51,10 @@ public class Column {
 
     private boolean index = false;
 
+    private String indexName = "";
+
+    private final java.util.Set<String> existingIndexes = new java.util.HashSet<>();
+
     private boolean exists;
 
     private boolean delete = false;
@@ -58,9 +64,8 @@ public class Column {
 
         github.alexozk.database.migration.Column colmig = null;
         if (col.serial()) {
-            return table.bigserial(col.value());
-        }
-        if (!col.type().isEmpty()) {
+            colmig = table.bigserial(col.value());
+        } else if (!col.type().isEmpty()) {
             colmig = table.custom(col.value(), col.type());
         } else {
             String coluna = col.value();
@@ -79,6 +84,9 @@ public class Column {
         if (colmig == null) {
             return null;
         }
+        colmig.setIndex(col.index());
+        colmig.setIndexName(col.indexName().isEmpty()
+                ? "index_" + table.getName() + "_" + col.value() : col.indexName());
         if (col.notnull()) {
             colmig = colmig.notnull();
         }
@@ -308,6 +316,15 @@ public class Column {
         return name;
     }
 
+    public String getOldValue() {
+        return oldValue;
+    }
+
+    public void setOldValue(String oldValue) {
+        this.oldValue = oldValue == null || oldValue.isEmpty() ? null : oldValue;
+        checkModified();
+    }
+
     public void setName(String name) {
         this.name = name;
         checkModified();
@@ -328,6 +345,22 @@ public class Column {
 
     public boolean isIndex() {
         return index;
+    }
+
+    public String getIndexName() {
+        return indexName;
+    }
+
+    public void setIndexName(String indexName) {
+        this.indexName = indexName == null ? "" : indexName;
+    }
+
+    public void addExistingIndex(String indexName) {
+        existingIndexes.add(indexName);
+    }
+
+    public boolean indexExists(String indexName) {
+        return existingIndexes.contains(indexName);
     }
 
     public void setIndex(boolean index) {

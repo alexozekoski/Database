@@ -44,7 +44,8 @@ public abstract class Migration {
         }
     }
 
-    public static void fresh(Database database, List<Class<? extends Model>> models) throws SQLException, Exception {
+    /** Drops and recreates the models' tables, including indexes and seed data. Existing rows are lost. */
+    public static void recreate(Database database, List<Class<? extends Model>> models) throws SQLException, Exception {
         for (int i = models.size() - 1; i >= 0; i--) {
             Class<? extends Model> classe = models.get(i);
             database.migrate(classe, true, true).dropTable();
@@ -52,7 +53,8 @@ public abstract class Migration {
         migrate(database, true, true, models);
     }
 
-    public static void fresh(Database database, Class<? extends Model>... models) throws SQLException, Exception {
+    /** Drops and recreates the models' tables, including indexes and seed data. Existing rows are lost. */
+    public static void recreate(Database database, Class<? extends Model>... models) throws SQLException, Exception {
         for (int i = models.length - 1; i >= 0; i--) {
             Class<? extends Model> classe = models[i];
             database.migrate(classe, true, true).dropTable();
@@ -65,13 +67,11 @@ public abstract class Migration {
             Class<? extends Model> classe = models.get(i);
             database.migrate(classe, true, true).dropTable();
         }
-        for (Class<? extends Model> classe : models) {
-            database.migrate(classe, true, true).dropTable();
-        }
     }
 
     public static void drop(Database database, Class<? extends Model>... models) throws SQLException, Exception {
-        for (Class<? extends Model> classe : models) {
+        for (int i = models.length - 1; i >= 0; i--) {
+            Class<? extends Model> classe = models[i];
             database.migrate(classe, true, true).dropTable();
         }
     }

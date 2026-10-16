@@ -223,7 +223,7 @@ public class MySQLDialect implements Dialect {
 
     @Override
     public String dropTable(String table) {
-        return "DROP TABLE IF EXISTS `" + table + "`";
+        return "DROP TABLE IF EXISTS " + Dialect.quoteName(this, table);
     }
 
     @Override
@@ -243,14 +243,7 @@ public class MySQLDialect implements Dialect {
 
     @Override
     public String createIndex(String index, String table, String... columns) {
-        StringBuilder cols = new StringBuilder();
-        for (int i = 0; i < columns.length; i++) {
-            if (i > 0) {
-                cols.append(", ");
-            }
-            cols.append("`").append(columns[i]).append("`");
-        }
-        return "CREATE INDEX `" + index + "` ON `" + table + "`(" + cols + ")";
+        return Dialect.createIndex(this, index, table, columns);
     }
 
     @Override
@@ -316,6 +309,11 @@ public class MySQLDialect implements Dialect {
         }
         sb.append(";");
         return sb.toString();
+    }
+
+    @Override
+    public String renameColumn(Table table, Column column) {
+        return Dialect.renameColumn(this, table, column);
     }
 
     @Override

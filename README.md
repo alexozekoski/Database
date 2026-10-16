@@ -535,4 +535,4 @@ user.refresh();
 user.refresh("name", "email");
 ```
 
-For a full rebuild, use `Migration.fresh(database, User.class);`
+For a full rebuild, use `Migration.recreate(database, User.class);` This drops and recreates the model's table, deleting its existing rows.
