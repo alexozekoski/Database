@@ -6,8 +6,8 @@
 package github.alexozk.database;
 
 import com.google.gson.JsonObject;
-import github.alexozk.database.migration.SQLiteMigration;
-import github.alexozk.database.migration.MigrationType;
+import github.alexozk.database.dialect.SQLiteDialect;
+import github.alexozk.database.dialect.Dialect;
 import java.io.File;
 import java.sql.SQLException;
 
@@ -21,7 +21,7 @@ public class SQLite extends Database {
     
     public static final String NAME = "SQLite";
 
-    public static final MigrationType MIGRATION_TYPE = new SQLiteMigration();
+    public static final Dialect DIALECT = new SQLiteDialect();
 
     public SQLite(JsonObject json) {
         super(json);
@@ -50,8 +50,8 @@ public class SQLite extends Database {
 //    }
 //    
     @Override
-    public MigrationType getMigrationType() {
-        return MIGRATION_TYPE;
+    public Dialect getDialect() {
+        return DIALECT;
     }
 
     @Override

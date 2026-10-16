@@ -18,7 +18,7 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
-import github.alexozk.database.migration.MigrationType;
+import github.alexozk.database.dialect.Dialect;
 import github.alexozk.database.model.ModelUtil;
 import github.alexozk.database.model.cast.CastUtil;
 import github.alexozk.database.query.Query;
@@ -1184,7 +1184,7 @@ public abstract class Database {
                 data.addProperty("jdbc_type", jdbctype);
                 data.addProperty("autoincrement", autoincrement);
                 json.add(column, data);
-                // cols.add(getMigrationType().castTypeSQL(column, type, dataType, size, prec, dec, nullable, autoincrement, value, null, null));
+                // cols.add(getDialect().castTypeSQL(column, type, dataType, size, prec, dec, nullable, autoincrement, value, null, null));
             }
         } catch (SQLException ex) {
             meta.close();
@@ -1211,7 +1211,7 @@ public abstract class Database {
                 String typeName = meta.getString("TYPE_NAME");
                 String auto = meta.findColumn("IS_AUTOINCREMENT") == -1 ? null : meta.getString("IS_AUTOINCREMENT");
                 boolean autoincrement = auto != null ? auto.equals("YES") : false;
-                cols.add(getMigrationType().castTypeSQL(column, type, typeName, dataType, size, prec, dec, nullable, autoincrement, value, null, null));
+                cols.add(getDialect().castTypeSQL(column, type, typeName, dataType, size, prec, dec, nullable, autoincrement, value, null, null));
             }
         } catch (SQLException ex) {
             meta.close();
@@ -1300,7 +1300,7 @@ public abstract class Database {
         return table;
     }
 
-    public abstract MigrationType getMigrationType();
+    public abstract Dialect getDialect();
 
     public Long getNextSequecialId(Class table, String column) {
         return getNextSequecialId(ModelUtil.getTable(table), column);
@@ -1366,7 +1366,7 @@ public abstract class Database {
     public boolean tryCreateDatabase(String database) throws SQLException, Exception {
         boolean auto = getConnection().getAutoCommit();
         getConnection().setAutoCommit(true);
-        String query = getMigrationType().createDatabase(database);
+        String query = getDialect().createDatabase(database);
         boolean ok = tryExecuteVoid(query);
         getConnection().setAutoCommit(auto);
         return ok;
@@ -1382,7 +1382,7 @@ public abstract class Database {
     }
 
     public boolean tryDropDatabase(String database) throws SQLException, Exception {
-        String query = getMigrationType().dropDatabase(database);
+        String query = getDialect().dropDatabase(database);
         return tryExecuteVoid(query);
     }
 

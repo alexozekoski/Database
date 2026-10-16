@@ -125,9 +125,9 @@ public class CastByte extends CastPrimitive {
     @Override
     public String dataType(Field field, Class fieldType, Database database) throws Exception {
         if (field.getType().isArray() || List.class.isAssignableFrom(field.getType())) {
-            return database.getMigrationType().byteArray();
+            return database.getDialect().byteArray();
         }
-        return database.getMigrationType().smallint();
+        return database.getDialect().smallint();
     }
 
 }

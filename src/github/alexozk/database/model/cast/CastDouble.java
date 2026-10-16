@@ -57,9 +57,9 @@ public class CastDouble extends CastPrimitive {
     public String dataType(Field field, Class fieldType, Database database) throws Exception {
         Column column = field.getAnnotation(Column.class);
         if (column.numeric() > 0 || column.decimal() > 0) {
-            return database.getMigrationType().decimal(column.decimal() > 0 ? column.decimal() : 10, column.numeric() > 0 ? column.numeric() : 4);
+            return database.getDialect().decimal(column.decimal() > 0 ? column.decimal() : 10, column.numeric() > 0 ? column.numeric() : 4);
         }
-        return arrayOrList(field, database.getMigrationType().numeric(), database);
+        return arrayOrList(field, database.getDialect().numeric(), database);
     }
 
 }

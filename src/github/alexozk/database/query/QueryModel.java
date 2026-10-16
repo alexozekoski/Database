@@ -31,9 +31,9 @@ public class QueryModel<M extends Model<M>> extends Query<QueryModel<M>> {
 
     public QueryModel(Class<? extends Model<M>> classe, Database database) {
         super(database, ModelUtil.getTable(classe));
-        Join[] joins = ModelUtil.getJoinColumn(classe, database);
-        for (Join join : joins) {
-            getClauses().add(join);
+        CreatedClause[] joins = ModelUtil.getJoinColumn(classe, database);
+        for (CreatedClause join : joins) {
+            join(join);
         }
         setTable(ModelUtil.getTable(classe));
         setClasse(classe);
@@ -547,13 +547,9 @@ public class QueryModel<M extends Model<M>> extends Query<QueryModel<M>> {
     public QueryModel<M> limit(long max, JsonObject json) throws IllegalArgumentException, IllegalAccessException {
         applyLimitJson(json == null ? null : json.get("limit"), json == null ? null : json.get("offset"));
         if (max > 0) {
-            for (Object clause : getClauses()) {
-                if (clause instanceof Limit) {
-                    Limit current = (Limit) clause;
-                    if (current.getValue() > max) {
-                        current.setValue(max);
-                    }
-                }
+            Long current = getLimitValue();
+            if (current != null && current > max) {
+                limit(max);
             }
         }
         return this;

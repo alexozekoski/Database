@@ -5,6 +5,8 @@
  */
 package github.alexozk.database.migration;
 
+import github.alexozk.database.dialect.Dialect;
+
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import github.alexozk.database.Database;
@@ -25,7 +27,7 @@ public class Table {
 
     private final List<Column> columns = new ArrayList();
 
-    private MigrationType migration;
+    private Dialect migration;
 
     private Database database;
 
@@ -33,7 +35,7 @@ public class Table {
 
     public Table(String name, Database database) throws SQLException {
         this.name = name;
-        this.migration = database.getMigrationType();
+        this.migration = database.getDialect();
         this.database = database;
         if (database.hasTable(name)) {
             exists = true;
@@ -127,7 +129,7 @@ public class Table {
     }
 
     private Column add(String col, String type) {
-        Column column = new Column(col, type, database.getMigrationType(), false);
+        Column column = new Column(col, type, database.getDialect(), false);
         columns.add(column);
         return column;
     }
@@ -322,7 +324,7 @@ public class Table {
 
     public void setDatabase(Database database) {
         this.database = database;
-        this.migration = database.getMigrationType();
+        this.migration = database.getDialect();
     }
 
     public JsonArray getAllRow() {

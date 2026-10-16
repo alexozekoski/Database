@@ -15,7 +15,8 @@ import github.alexozk.database.Database;
 import github.alexozk.database.Log;
 import github.alexozk.database.SQLite;
 import github.alexozk.database.model.cast.Cast;
-import github.alexozk.database.query.Join;
+import github.alexozk.database.query.CreatedClause;
+import github.alexozk.database.query.QueryType;
 import github.alexozk.database.query.Query;
 import github.alexozk.database.query.QueryModel;
 import github.alexozk.database.validation.Validator;
@@ -229,9 +230,9 @@ public class ModelUtil {
         return Validator.validate(model, columns);
     }
 
-    public static Join[] getJoinColumn(Class model, Database database) {
+    public static CreatedClause[] getJoinColumn(Class model, Database database) {
         Field[] mFields = model.getFields();
-        List<Join> joins = new ArrayList<>(mFields.length);
+        List<CreatedClause> joins = new ArrayList<>(mFields.length);
         for (Field field : model.getFields()) {
             Column column = field.getAnnotation(Column.class);
             if (isForeign(column) && column.join()) {
@@ -241,10 +242,12 @@ public class ModelUtil {
                     table = column.foreign();
                     key = column.key();
                 }
-                joins.add(new Join("INNER JOIN", table, Query.parseColumn(table, key, database.getMigrationType()) + " = " + Query.parseColumn(ModelUtil.getTable(model), column.value(), database.getMigrationType()), database.getMigrationType()));
+                String sql = database.getDialect().join("INNER JOIN", table,
+                        table + "." + key, getTable(model) + "." + column.value(), QueryType.SELECT).getQuery();
+                joins.add(CreatedClause.raw(sql));
             }
         }
-        return joins.toArray(Join[]::new);
+        return joins.toArray(CreatedClause[]::new);
     }
 
     public static Field[] getAllColumns(Class model, boolean insert, boolean update, boolean select, boolean fill, boolean validate) {

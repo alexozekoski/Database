@@ -157,7 +157,7 @@ public class Model<T extends Model<T>> {
             if (field.getAnnotation(Column.class
             ) != null) {
                 valores[total++] = Query.parseColumn(table, ((Column) field.getAnnotation(Column.class
-                )).value(), getDatabase().getMigrationType());
+                )).value(), getDatabase().getDialect());
             }
         }
         return valores;

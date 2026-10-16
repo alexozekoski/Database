@@ -48,7 +48,7 @@ public class CastBlob extends CastPrimitive {
 
     @Override
     public String dataType(Field field, Class fieldType, Database database) throws Exception {
-        return database.getMigrationType().blob();
+        return database.getDialect().blob();
     }
 
 }

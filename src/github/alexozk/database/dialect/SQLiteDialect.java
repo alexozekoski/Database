@@ -3,13 +3,123 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package github.alexozk.database.migration;
+package github.alexozk.database.dialect;
+
+import github.alexozk.database.migration.Column;
+import github.alexozk.database.migration.Table;
+
+import github.alexozk.database.query.CreatedClause;
+import java.util.Locale;
+
+import github.alexozk.database.query.QueryType;
+import github.alexozk.database.query.RenderedClause;
 
 /**
  *
  * @author alexo
  */
-public class SQLiteMigration implements MigrationType {
+public class SQLiteDialect implements Dialect {
+
+    @Override
+    public RenderedClause where(CreatedClause clause, QueryType type) {
+        return Dialect.where(this, clause, type);
+    }
+
+    @Override
+    public RenderedClause column(CreatedClause clause, QueryType type) {
+        return Dialect.identifier(this, clause, type, true);
+    }
+
+    @Override
+    public RenderedClause column(String column, QueryType type) {
+        return column(new CreatedClause(column, "=", new Object[0]), type);
+    }
+
+    @Override
+    public RenderedClause set(CreatedClause clause, QueryType type) {
+        return Dialect.set(this, clause, type);
+    }
+
+    @Override
+    public RenderedClause set(String column, Object value, QueryType type) {
+        return set(new CreatedClause(column, "=", new Object[]{value}), type);
+    }
+
+    @Override
+    public RenderedClause join(CreatedClause clause, QueryType type) {
+        return Dialect.raw(clause, type);
+    }
+
+    @Override
+    public RenderedClause join(String joinType, String table,
+            String localColumn, String foreignColumn, QueryType type) {
+        return Dialect.join(this, joinType, table, localColumn, foreignColumn, type);
+    }
+
+    @Override
+    public RenderedClause groupBy(CreatedClause clause, QueryType type) {
+        return Dialect.identifier(this, clause, type, false);
+    }
+
+    @Override
+    public RenderedClause groupBy(String column, QueryType type) {
+        return groupBy(new CreatedClause(column, "=", new Object[0]), type);
+    }
+
+    @Override
+    public RenderedClause orderBy(CreatedClause clause, QueryType type) {
+        return Dialect.orderBy(this, clause, type);
+    }
+
+    @Override
+    public RenderedClause orderBy(String column, String direction, QueryType type) {
+        return orderBy(new CreatedClause(column, direction, new Object[0]), type);
+    }
+
+    @Override
+    public RenderedClause limit(long value, QueryType type) {
+        return Dialect.pagination(value, type);
+    }
+
+    @Override
+    public RenderedClause offset(long value, QueryType type) {
+        return Dialect.pagination(value, type);
+    }
+
+    @Override
+    public boolean allowsOperator(String operator) {
+        if (operator == null) {
+            return false;
+        }
+        for (String allowed : operators()) {
+            if (allowed != null && allowed.equalsIgnoreCase(operator)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public String normalizeOperator(String operator) {
+        if (operator == null) {
+            return "=";
+        }
+        String value = operator.trim().toUpperCase(Locale.ROOT);
+        if ("!=".equals(value)) {
+            value = "<>";
+        }
+        if (!allowsOperator(value)) {
+            throw new IllegalArgumentException("Unsupported SQL operator: " + operator);
+        }
+        return value;
+    }
+
+
+    @Override
+    public RenderedClause limitForOffset(QueryType type) {
+        java.util.Objects.requireNonNull(type, "type");
+        return new RenderedClause("-1");
+    }
 
     private static final String[] OPERATORS = {
         "=", "<>", ">", "<", ">=", "<=", "LIKE", "NOT LIKE", "GLOB", "BETWEEN", "IS",

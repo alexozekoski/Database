@@ -51,9 +51,9 @@ public class CastEnum extends CastPrimitive {
     public String dataType(Field field, Class fieldType, Database database) throws Exception {
         Column column = field.getAnnotation(Column.class);
         if (column.text()) {
-            return database.getMigrationType().text();
+            return database.getDialect().text();
         }
-        return arrayOrList(field, database.getMigrationType().varchar(column.varchar() > 0 ? column.varchar() : Model.DEFAULT_VARCHAR_SIZE), database);
+        return arrayOrList(field, database.getDialect().varchar(column.varchar() > 0 ? column.varchar() : Model.DEFAULT_VARCHAR_SIZE), database);
     }
 
 }

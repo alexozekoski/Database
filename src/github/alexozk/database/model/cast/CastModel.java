@@ -98,9 +98,9 @@ public class CastModel extends CastPrimitive {
     @Override
     public String dataType(Field field, Class fieldType, Database database) throws Exception {
         if (Serial.class.isAssignableFrom(fieldType) && ModelUtil.isForeign(field.getAnnotation(Column.class))) {
-            return arrayOrList(field, database.getMigrationType().bigint(), database);
+            return arrayOrList(field, database.getDialect().bigint(), database);
         } else {
-            return arrayOrList(field, database.getMigrationType().text(), database);
+            return arrayOrList(field, database.getDialect().text(), database);
         }
     }
 

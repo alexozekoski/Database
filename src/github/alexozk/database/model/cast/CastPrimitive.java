@@ -46,7 +46,7 @@ public class CastPrimitive implements Cast {
 
     @Override
     public String dataType(Field field, Class fieldType, Database database) throws Exception {
-        return database.getMigrationType().text();
+        return database.getDialect().text();
     }
 
     @Override
@@ -121,7 +121,7 @@ public class CastPrimitive implements Cast {
     }
 
     public String arrayOrList(Field field, String defaultValue, Database database) {
-        return field.getType().isArray() || List.class.isAssignableFrom(field.getType()) ? database.getMigrationType().text() : defaultValue;
+        return field.getType().isArray() || List.class.isAssignableFrom(field.getType()) ? database.getDialect().text() : defaultValue;
     }
 
 //    @Override

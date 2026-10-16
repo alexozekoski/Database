@@ -6,8 +6,8 @@
 package github.alexozk.database;
 
 import com.google.gson.JsonObject;
-import github.alexozk.database.migration.MySQLMigration;
-import github.alexozk.database.migration.MigrationType;
+import github.alexozk.database.dialect.MySQLDialect;
+import github.alexozk.database.dialect.Dialect;
 
 /**
  *
@@ -19,7 +19,7 @@ public class MySQL extends Database {
 
     public static final String NAME = "MySQL";
 
-    public static final MigrationType MIGRATION_TYPE = new MySQLMigration();
+    public static final Dialect DIALECT = new MySQLDialect();
 
     public MySQL(JsonObject json) {
         super(json);
@@ -35,8 +35,8 @@ public class MySQL extends Database {
     }
 
     @Override
-    public MigrationType getMigrationType() {
-        return MIGRATION_TYPE;
+    public Dialect getDialect() {
+        return DIALECT;
     }
 
     @Override

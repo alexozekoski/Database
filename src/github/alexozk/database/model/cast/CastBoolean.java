@@ -51,7 +51,7 @@ public class CastBoolean extends CastPrimitive {
 
     @Override
     public String dataType(Field field, Class fieldType, Database database) throws Exception {
-        return arrayOrList(field, database.getMigrationType().booleano(), database);
+        return arrayOrList(field, database.getDialect().booleano(), database);
     }
 
 }

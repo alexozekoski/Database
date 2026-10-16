@@ -7,8 +7,8 @@ package github.alexozk.database;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import github.alexozk.database.migration.PostgresSQLMigration;
-import github.alexozk.database.migration.MigrationType;
+import github.alexozk.database.dialect.PostgreSQLDialect;
+import github.alexozk.database.dialect.Dialect;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -28,7 +28,7 @@ public class PostgreSQL extends Database {
 
     public static final String NAME = "PostgreSQL";
 
-    public static final MigrationType MIGRATION_TYPE = new PostgresSQLMigration();
+    public static final Dialect DIALECT = new PostgreSQLDialect();
 
     public PostgreSQL(JsonObject json) {
         super(json);
@@ -65,39 +65,8 @@ public class PostgreSQL extends Database {
     }
 
     @Override
-    public MigrationType getMigrationType() {
-        return MIGRATION_TYPE;
-    }
-
-    public void tryUbuntuDump(File file) throws IOException {
-        String user = getUser();
-        String password = getPassword();
-        String host = getHost();
-        String port = Integer.toString(getPort());
-        String database = getDatabase();
-        if (file.exists()) {
-            if (file.length() > 0) {
-                file.delete();
-            }
-
-        }
-
-        Process p = null;
-        String linha = "";
-        ProcessBuilder pb = new ProcessBuilder("pg_dump", "-h", host, "-U", user, "-p", port, "-F", "c", "-b", "-v", "-f", file.getCanonicalPath(), database);
-        pb.environment().put("PGPASSWORD", password);
-
-        pb.redirectErrorStream(true);
-        p = pb.start();
-        BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
-        while ((linha = reader.readLine()) != null) {
-            System.out.println(linha);
-        }
-        try {
-            p.waitFor();
-        } catch (InterruptedException ex) {
-            Thread.currentThread().interrupt();
-        }
+    public Dialect getDialect() {
+        return DIALECT;
     }
 
     @Override

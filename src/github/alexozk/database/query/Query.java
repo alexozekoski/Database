@@ -11,7 +11,7 @@ import com.google.gson.JsonObject;
 import github.alexozk.database.Database;
 import github.alexozk.database.DatabaseResultset;
 import github.alexozk.database.Log;
-import github.alexozk.database.migration.MigrationType;
+import github.alexozk.database.dialect.Dialect;
 import github.alexozk.database.model.Model;
 import github.alexozk.database.model.ModelUtil;
 import java.lang.reflect.Array;
@@ -32,7 +32,28 @@ public class Query<T extends Query> {
     private static final Pattern SELECT_AS = Pattern.compile("(?i)\\s+AS\\s+");
     private static final Pattern SQL_FUNCTION = Pattern.compile("(?i)^[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*\\s*\\(.*\\)$");
 
-    private List<Clause> clauses = new ArrayList();
+    private final List<CreatedClause> selects = new ArrayList<>();
+    private final List<CreatedClause> sets = new ArrayList<>();
+    private final List<CreatedClause> joins = new ArrayList<>();
+    private final List<CreatedClause> groups = new ArrayList<>();
+    private final List<CreatedClause> orders = new ArrayList<>();
+    private final List<WhereEntry> wheres = new ArrayList<>();
+    private Long limitValue;
+    private Long offsetValue;
+
+    private enum Kind { COLUMN, SET, JOIN, GROUP, ORDER, WHERE }
+
+    private static final class WhereEntry {
+        private final CreatedClause clause;
+        private final String prefix;
+        private final int level;
+
+        private WhereEntry(CreatedClause clause, String prefix, int level) {
+            this.clause = clause;
+            this.prefix = prefix;
+            this.level = level;
+        }
+    }
 
     private boolean firstWhere = true;
 
@@ -115,8 +136,8 @@ public class Query<T extends Query> {
         return list.toArray();
     }
 
-    protected List<Clause> getClauses() {
-        return clauses;
+    protected Long getLimitValue() {
+        return limitValue;
     }
 
     public T groupBy(Object... columns) {
@@ -128,14 +149,16 @@ public class Query<T extends Query> {
 
     public T select(String... columns) {
         for (String column : columns) {
-            clauses.add(new Column(normalizeSelectColumn(column, getDatabase().getMigrationType()), table, getDatabase().getMigrationType(), isRawSelectExpression(column)));
+            String name = normalizeSelectColumn(column, getDatabase().getDialect());
+            selects.add(isRawSelectExpression(column) ? CreatedClause.raw(name)
+                    : new CreatedClause(name, "=", new Object[0]));
         }
         return (T) this;
     }
 
     public T selectRaw(String... columns) {
         for (String column : columns) {
-            clauses.add(new Column(column, table, getDatabase().getMigrationType(), true));
+            selects.add(CreatedClause.raw(column));
         }
         return (T) this;
     }
@@ -152,12 +175,14 @@ public class Query<T extends Query> {
     }
 
     public T set(String column, Object value) {
-        clauses.add(new Set(column, value, getDatabase().getMigrationType()));
+        sets.add(new CreatedClause(column, "=", new Object[]{value}));
         return (T) this;
     }
 
     public T groupBy(Object column) {
-        clauses.add(new GroupBy(column, table, getDatabase().getMigrationType()));
+        String name = java.util.Objects.requireNonNull(column, "column").toString();
+        groups.add(!(column instanceof String) || isSqlFunctionExpression(name)
+                ? CreatedClause.raw(name) : new CreatedClause(name, "=", new Object[0]));
         return (T) this;
     }
 
@@ -206,7 +231,7 @@ public class Query<T extends Query> {
     }
 
     public T join(String join, String localtable, String foreignTable, String localColumn, String foreignColumn) {
-        return (T) joinRaw(normalizeJoin(join), foreignTable, Query.parseColumn(localtable, localColumn, getDatabase().getMigrationType()) + " = " + Query.parseColumn(foreignTable, foreignColumn, getDatabase().getMigrationType()));
+        return (T) joinRaw(normalizeJoin(join), foreignTable, Query.parseColumn(localtable, localColumn, getDatabase().getDialect()) + " = " + Query.parseColumn(foreignTable, foreignColumn, getDatabase().getDialect()));
     }
 
     public T join(Class table, String query) {
@@ -222,7 +247,12 @@ public class Query<T extends Query> {
     }
 
     public T joinRaw(String join, String table, String query) {
-        clauses.add(new Join(join, table, query, getDatabase().getMigrationType()));
+        return join(CreatedClause.raw(normalizeJoin(join) + " "
+                + parseColumn(null, table, getDatabase().getDialect()) + " ON " + query));
+    }
+
+    public T join(CreatedClause clause) {
+        joins.add(copy(clause));
         return (T) this;
     }
 
@@ -250,8 +280,7 @@ public class Query<T extends Query> {
     }
 
     public T orderBy(String column) {
-        clauses.add(new OrderBy(column, "ASC", table, getDatabase().getMigrationType()));
-        return (T) this;
+        return orderBy(column, "ASC");
     }
 
     public T orderByDesc(String column) {
@@ -271,7 +300,10 @@ public class Query<T extends Query> {
     }
 
     public T orderBy(String column, String order) {
-        clauses.add(new OrderBy(column, normalizeOrder(order), table, getDatabase().getMigrationType()));
+        String direction = normalizeOrder(order);
+        orders.add(isSqlFunctionExpression(column)
+                ? CreatedClause.raw(column + " " + direction)
+                : new CreatedClause(column, direction, new Object[0]));
         return (T) this;
     }
 
@@ -281,22 +313,12 @@ public class Query<T extends Query> {
     }
 
     public T limit(long value) {
-        List<Clause> list = find(Limit.class, clauses);
-        if (list.size() > 0) {
-            ((Limit) list.get(0)).setValue(value);
-        } else {
-            clauses.add(new Limit(value));
-        }
+        limitValue = value;
         return (T) this;
     }
 
     public T offset(long value) {
-        List<Clause> list = find(Offset.class, clauses);
-        if (list.size() > 0) {
-            ((Offset) list.get(0)).setValue(value);
-        } else {
-            clauses.add(new Offset(value));
-        }
+        offsetValue = value;
         return (T) this;
     }
 
@@ -405,6 +427,33 @@ public class Query<T extends Query> {
         return where(column, "=", value);
     }
 
+    public T where(CreatedClause clause) {
+        return where("AND", clause);
+    }
+
+    public T orWhere(CreatedClause clause) {
+        return where("OR", clause);
+    }
+
+    private T where(String prefix, CreatedClause clause) {
+        java.util.Objects.requireNonNull(clause, "clause");
+        Object[] parameters = java.util.Objects.requireNonNull(clause.getParameters(), "parameters").clone();
+        String operator = clause.isRaw() ? clause.getOperator()
+                : database.getDialect().normalizeOperator(clause.getOperator());
+        boolean needsValue = clause.isRaw() || !("IS NULL".equals(operator)
+                || "IS NOT NULL".equals(operator));
+        if (!clause.isRaw() && !needsValue && parameters.length != 0) {
+            throw new IllegalArgumentException("NULL predicates do not accept parameters");
+        }
+        if (!clause.isRaw() && needsValue && parameters.length == 0
+                && !"IN".equals(operator) && !"NOT IN".equals(operator)) {
+            throw new IllegalArgumentException(operator + " requires parameters");
+        }
+        Object value = !clause.isRaw() && parameters.length == 1 ? parameters[0] : parameters;
+        return where(prefix, clause.getQuery(), operator, value,
+                clause.isRaw(), needsValue);
+    }
+
     public T where(String column, String operator, Object value) {
         return where("AND", column, operator, value);
     }
@@ -422,18 +471,15 @@ public class Query<T extends Query> {
     }
 
     public T where(String prefix, String column, String operator, Object value, boolean raw, boolean hasValue) {
-        if (value != null && value.getClass().isArray() && Array.getLength(value) == 0 && !raw) {
-            return (T) this;
+        String op = normalizeOperator(operator, raw, getDatabase().getDialect());
+        Object[] parameters = hasValue ? (raw ? buildRaw(value) : new Object[]{value}) : new Object[0];
+        if (!raw && ("IS NULL".equals(op) || "IS NOT NULL".equals(op)) && value == null) {
+            parameters = new Object[0];
         }
-        if (value instanceof List && ((List) value).isEmpty()) {
-            return (T) this;
-        }
-        if (firstWhere) {
-            firstWhere = false;
-            prefix = null;
-        }
-
-        clauses.add(new Where(normalizePrefix(prefix), column, normalizeOperator(operator, raw, getDatabase().getMigrationType()), value, raw, table, getDatabase().getMigrationType(), hasValue, whereLevel));
+        CreatedClause clause = raw ? CreatedClause.raw(column, parameters) : new CreatedClause(column, op, parameters);
+        String normalizedPrefix = normalizePrefix(firstWhere ? null : prefix);
+        wheres.add(new WhereEntry(clause, normalizedPrefix, whereLevel));
+        firstWhere = false;
         return (T) this;
     }
 
@@ -442,68 +488,101 @@ public class Query<T extends Query> {
     }
 
     public Object[] buildParam(char type) {
-        List<Object> param = new ArrayList<>();
-        switch (type) {
-            case 'U': {
-                buildParam(type, Set.class, clauses, param);
-                break;
-            }
-            case 'I': {
-                buildParam(type, Set.class, clauses, param);
-                break;
-            }
-
+        QueryType operation = QueryType.from(type);
+        List<Object> parameters = new ArrayList<>();
+        if (operation == QueryType.SELECT) {
+            appendParameters(parameters, selects, operation, Kind.COLUMN);
+        } else if (operation == QueryType.INSERT || operation == QueryType.UPDATE) {
+            appendParameters(parameters, sets, operation, Kind.SET);
         }
-
-        buildParam(type, Where.class, clauses, param);
-//        if (type == 'S') {
-//            addParam(param, find(GroupBy.class));
-//            addParam(param, find(OrderBy.class));
-//        }
-
-        buildParam(type, Limit.class, clauses, param);
-        buildParam(type, Offset.class, clauses, param);
-        return param.toArray();
+        appendParameters(parameters, joins, operation, Kind.JOIN);
+        for (WhereEntry where : wheres) {
+            java.util.Collections.addAll(parameters, render(where.clause, operation, Kind.WHERE).getParameters());
+        }
+        appendParameters(parameters, groups, operation, Kind.GROUP);
+        appendParameters(parameters, orders, operation, Kind.ORDER);
+        if (limitValue == null && offsetValue != null) {
+            java.util.Collections.addAll(parameters, database.getDialect().limitForOffset(operation).getParameters());
+        }
+        if (limitValue != null) {
+            java.util.Collections.addAll(parameters, database.getDialect().limit(limitValue, operation).getParameters());
+        }
+        if (offsetValue != null) {
+            java.util.Collections.addAll(parameters, database.getDialect().offset(offsetValue, operation).getParameters());
+        }
+        return parameters.toArray();
     }
 
     protected void buildJoin(StringBuilder sql, char type) {
-        buildQuery(type, sql, " ", Join.class, clauses, " ", " ");
+        buildQuery(type, sql, " ", joins, " ", " ", Kind.JOIN);
     }
 
     protected void buildGroupBy(StringBuilder sql, char type) {
-        buildQuery(type, sql, " GROUP BY", GroupBy.class, clauses, " ", ", ");
+        buildQuery(type, sql, " GROUP BY", groups, " ", ", ", Kind.GROUP);
     }
 
     protected void buildWhere(StringBuilder sql, char type) {
-        buildWhere(type, sql, clauses);
+        if (wheres.isEmpty()) {
+            return;
+        }
+        sql.append(" WHERE ");
+        int last = 0;
+        for (WhereEntry where : wheres) {
+            if (where.level < last) {
+                for (int i = where.level; i < last; i++) {
+                    sql.append(")");
+                }
+            }
+            if (where.prefix != null) {
+                sql.append(" ").append(where.prefix).append(" ");
+            }
+            for (int i = last; i < where.level; i++) {
+                sql.append("(");
+            }
+            sql.append(render(where.clause, QueryType.from(type), Kind.WHERE).getQuery());
+            last = where.level;
+        }
+        for (int i = 0; i < last; i++) {
+            sql.append(")");
+        }
     }
 
     protected void buildOffset(StringBuilder sql, char type) {
-        buildQuery(type, sql, " OFFSET", Offset.class, clauses, " ", " ");
+        if (offsetValue != null) {
+            sql.append(" OFFSET ").append(database.getDialect().offset(offsetValue, QueryType.from(type)).getQuery());
+        }
     }
 
     protected void buildLimit(StringBuilder sql, char type) {
-        buildQuery(type, sql, " LIMIT", Limit.class, clauses, " ", " ");
+        QueryType operation = QueryType.from(type);
+        if (limitValue != null) {
+            sql.append(" LIMIT ").append(database.getDialect().limit(limitValue, operation).getQuery());
+        } else if (offsetValue != null) {
+            String implicit = database.getDialect().limitForOffset(operation).getQuery();
+            if (!implicit.isEmpty()) {
+                sql.append(" LIMIT ").append(implicit);
+            }
+        }
     }
 
     protected void buildOrderBy(StringBuilder sql, char type) {
-        buildQuery(type, sql, " ORDER BY", OrderBy.class, clauses, " ", ", ");
+        buildQuery(type, sql, " ORDER BY", orders, " ", ", ", Kind.ORDER);
     }
 
     protected void buildTable(StringBuilder sql) {;
         sql.append(" FROM ");
-        sql.append(database.getMigrationType().carrot()).append(table).append(database.getMigrationType().carrot());
+        sql.append(parseColumn(null, table, database.getDialect()));
     }
 
     protected void buildSelect(StringBuilder sql) {
-        int t = buildQuery('S', sql, "SELECT", Column.class, clauses, " ", ", ");
+        int t = buildQuery('S', sql, "SELECT", selects, " ", ", ", Kind.COLUMN);
         if (t == 0) {
             sql.append("SELECT *");
         }
     }
 
     protected void buildSelectDistinct(StringBuilder sql) {
-        int t = buildQuery('S', sql, "SELECT DISTINCT", Column.class, clauses, " ", ", ");
+        int t = buildQuery('S', sql, "SELECT DISTINCT", selects, " ", ", ", Kind.COLUMN);
         if (t == 0) {
             sql.append("SELECT *");
         }
@@ -511,23 +590,29 @@ public class Query<T extends Query> {
 
     protected void buildUpdate(StringBuilder sql) {
         sql.append("UPDATE ");
-        sql.append(database.getMigrationType().carrot()).append(table).append(database.getMigrationType().carrot());
+        sql.append(parseColumn(null, table, database.getDialect()));
         sql.append(" SET");
-        buildQuery('U', sql, null, Set.class, clauses, " ", ", ");
+        buildQuery('U', sql, null, sets, " ", ", ", Kind.SET);
 
     }
 
     protected void buildInsert(StringBuilder sql) {
         sql.append("INSERT INTO ");
-        sql.append(database.getMigrationType().carrot()).append(table).append(database.getMigrationType().carrot());
-        int t = buildQuery('I', sql, " (", Set.class, clauses, "", ", ");
-        sql.append(") VALUES (");
-        for (int i = 0; i < t; i++) {
-            if (i == 0) {
-                sql.append("?");
-            } else {
-                sql.append(", ?");
+        sql.append(parseColumn(null, table, database.getDialect()));
+        List<CreatedClause> assignments = sets;
+        sql.append(" (");
+        for (int i = 0; i < assignments.size(); i++) {
+            if (i > 0) {
+                sql.append(", ");
             }
+            sql.append(database.getDialect().column(assignments.get(i).getQuery(), QueryType.INSERT).getQuery());
+        }
+        sql.append(") VALUES (");
+        for (int i = 0; i < assignments.size(); i++) {
+            if (i > 0) {
+                sql.append(", ");
+            }
+            sql.append(render(assignments.get(i), QueryType.INSERT, Kind.SET).getQuery());
         }
         sql.append(")");
     }
@@ -589,11 +674,19 @@ public class Query<T extends Query> {
     }
 
     public void reset() {
-        clauses.clear();
+        selects.clear();
+        sets.clear();
+        joins.clear();
+        groups.clear();
+        orders.clear();
+        wheres.clear();
+        limitValue = null;
+        offsetValue = null;
         firstWhere = true;
+        whereLevel = 0;
     }
 
-    public static String parseColumn(String table, String col, MigrationType type) {
+    public static String parseColumn(String table, String col, Dialect type) {
         if (col == null) {
             return null;
         }
@@ -601,16 +694,16 @@ public class Query<T extends Query> {
             if (table == null || table.isEmpty()) {
                 return "*";
             }
-            return quoteIdentifierPath(table, type) + ".*";
+            return normalizeIdentifierPath(table, type) + ".*";
         }
         if (col.contains(".")) {
-            return quoteIdentifierPath(col, type);
+            return normalizeIdentifierPath(col, type);
         }
         String quotedColumn = quoteIdentifier(col, type);
         if (table == null || table.isEmpty()) {
             return quotedColumn;
         }
-        return quoteIdentifierPath(table, type) + "." + quotedColumn;
+        return normalizeIdentifierPath(table, type) + "." + quotedColumn;
     }
 
     private static String normalizePrefix(String prefix) {
@@ -643,14 +736,14 @@ public class Query<T extends Query> {
         return value;
     }
 
-    private static String normalizeOperator(String operator, boolean raw, MigrationType migrationType) {
+    private static String normalizeOperator(String operator, boolean raw, Dialect dialect) {
         if (raw) {
             return operator;
         }
-        return migrationType.normalizeOperator(operator);
+        return dialect.normalizeOperator(operator);
     }
 
-    private static String quoteIdentifier(String identifier, MigrationType type) {
+    private static String quoteIdentifier(String identifier, Dialect type) {
         identifier = normalizeIdentifier(identifier);
         if (identifier == null || identifier.isEmpty()) {
             throw new IllegalArgumentException("Identifier cannot be empty");
@@ -671,8 +764,7 @@ public class Query<T extends Query> {
             char last = value.charAt(value.length() - 1);
             boolean quotedByDouble = first == '"' && last == '"';
             boolean quotedByBacktick = first == '`' && last == '`';
-            boolean quotedBySingle = first == '\'' && last == '\'';
-            if (quotedByDouble || quotedByBacktick || quotedBySingle) {
+            if (quotedByDouble || quotedByBacktick) {
                 value = value.substring(1, value.length() - 1).trim();
             }
         }
@@ -718,7 +810,7 @@ public class Query<T extends Query> {
         return !value.isEmpty() && SQL_FUNCTION.matcher(value).matches();
     }
 
-    private static String normalizeSelectColumn(String expression, MigrationType type) {
+    private static String normalizeSelectColumn(String expression, Dialect type) {
         if (expression == null) {
             return null;
         }
@@ -735,7 +827,7 @@ public class Query<T extends Query> {
         return column + " AS " + alias;
     }
 
-    private static String normalizeIdentifierPath(String identifier, MigrationType type) {
+    private static String normalizeIdentifierPath(String identifier, Dialect type) {
         if (identifier == null) {
             return null;
         }
@@ -754,149 +846,70 @@ public class Query<T extends Query> {
         return sb.toString();
     }
 
-    private static String quoteIdentifierPath(String identifier, MigrationType type) {
-        String[] parts = identifier.split("\\.");
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < parts.length; i++) {
-            if (i > 0) {
-                sb.append(".");
-            }
-            sb.append(quoteIdentifier(parts[i], type));
-        }
-        return sb.toString();
-    }
-
     public String parseColumn(String table, String col) {
-        return parseColumn(table, col, getDatabase().getMigrationType());
+        return parseColumn(table, col, getDatabase().getDialect());
     }
 
     public String parseColumn(Class<? extends Model> table, String col) {
-        return parseColumn(ModelUtil.getTable(table), col, getDatabase().getMigrationType());
+        return parseColumn(ModelUtil.getTable(table), col, getDatabase().getDialect());
     }
 
     public String parseColumnAs(Class<? extends Model> table, String col, String alias) {
-        return parseColumn(ModelUtil.getTable(table), col, getDatabase().getMigrationType()) + " AS "
-                + quoteIdentifier(alias, getDatabase().getMigrationType());
+        return parseColumn(ModelUtil.getTable(table), col, getDatabase().getDialect()) + " AS "
+                + quoteIdentifier(alias, getDatabase().getDialect());
     }
 
     public String parseColumnAs(String table, String col, String alias) {
-        return parseColumn(table, col, getDatabase().getMigrationType()) + " AS "
-                + quoteIdentifier(alias, getDatabase().getMigrationType());
+        return parseColumn(table, col, getDatabase().getDialect()) + " AS "
+                + quoteIdentifier(alias, getDatabase().getDialect());
     }
 
-    private static void buildParam(char type, List<Clause> clauses, List<Object> objects) {
-        for (Clause clause : clauses) {
+    private static CreatedClause copy(CreatedClause clause) {
+        java.util.Objects.requireNonNull(clause, "clause");
+        Object[] values = clause.getParameters().clone();
+        CreatedClause result = new CreatedClause(clause.getQuery(), clause.getOperator(), values);
+        result.setRaw(clause.isRaw());
+        return result;
+    }
 
-            if (clause.hasValue(type)) {
-                Object value = clause.value(type);
-                if (value != null) {
-                    if (value.getClass().isArray() && !byte[].class.isInstance(value)) {
-                        for (int i = 0; i < Array.getLength(value); i++) {
-                            objects.add(Array.get(value, i));
-                        }
-                    } else if (value instanceof List) {
-                        List list = (List) value;
-                        list.forEach((item) -> {
-                            objects.add(item);
-                        });
-                    } else {
-                        objects.add(value);
-                    }
-                } else {
-                    objects.add(value);
-                }
+    private RenderedClause render(CreatedClause source, QueryType type, Kind kind) {
+        CreatedClause clause = source;
+        if (!source.isRaw() && kind != Kind.SET && kind != Kind.JOIN) {
+            String name = source.getQuery();
+            if (!name.contains(".") && table != null && !table.isEmpty()) {
+                name = table + "." + name;
             }
+            clause = new CreatedClause(name, source.getOperator(), source.getParameters());
         }
-
-    }
-
-    private static void buildParam(char type, Class<? extends Clause> classe, List<Clause> clauses, List<Object> objects) {
-        buildParam(type, find(classe, clauses), objects);
-    }
-
-    private static List<Clause> find(Class<? extends Clause> classe, List<Clause> clauses) {
-        List<Clause> list = new ArrayList<>();
-        for (Clause clause : clauses) {
-            if (clause.getClass().equals(classe)) {
-                list.add(clause);
-            }
+        Dialect dialect = database.getDialect();
+        switch (kind) {
+            case COLUMN: return dialect.column(clause, type);
+            case SET: return dialect.set(clause, type);
+            case JOIN: return dialect.join(clause, type);
+            case GROUP: return dialect.groupBy(clause, type);
+            case ORDER: return dialect.orderBy(clause, type);
+            case WHERE: return dialect.where(clause, type);
+            default: throw new IllegalArgumentException("Unsupported clause kind: " + kind);
         }
-        return list;
     }
 
-    private static List<Clause> remove(Class<? extends Clause> classe, List<Clause> clauses) {
-        List<Clause> removed = new ArrayList();
+    private void appendParameters(List<Object> parameters, List<CreatedClause> clauses, QueryType type, Kind kind) {
+        for (CreatedClause clause : clauses) {
+            java.util.Collections.addAll(parameters, render(clause, type, kind).getParameters());
+        }
+    }
+
+    private int buildQuery(char type, StringBuilder sql, String keyword, List<CreatedClause> clauses,
+            String firstSeparator, String separator, Kind kind) {
+        if (clauses.isEmpty()) {
+            return 0;
+        }
+        if (keyword != null) {
+            sql.append(keyword);
+        }
         for (int i = 0; i < clauses.size(); i++) {
-            if (classe.isInstance(clauses.get(i))) {
-                removed.add(clauses.remove(i));
-                i--;
-            }
-        }
-        return removed;
-    }
-
-    private static int buildWhere(char type, StringBuilder sql, List<Clause> clauses) {
-        List<Clause> filt = find(Where.class, clauses);
-        if (filt.isEmpty()) {
-            return 0;
-        }
-        sql.append(" WHERE ");
-        int last = 0;
-        for (Clause clause : filt) {
-            boolean usedPrefix = false;
-            Where where = (Where) clause;
-            String prefix = where.getPrefix();
-            if (where.getLevel() > last) {
-                if (prefix != null) {
-                    usedPrefix = true;
-                    sql.append(" ");
-                    sql.append(prefix);
-                    sql.append(" ");
-                }
-                for (int i = last; i < where.getLevel(); i++) {
-                    sql.append("(");
-                }
-            }
-            if (where.getLevel() < last) {
-                sql.append(")");
-            }
-            if (!usedPrefix && prefix != null) {
-                sql.append(" ");
-                sql.append(prefix);
-                sql.append(" ");
-            }
-            sql.append(clause.query(type));
-            last = where.getLevel();
-        }
-        for (int i = 0; i < last; i++) {
-            sql.append(")");
-        }
-        return filt.size();
-    }
-
-    private static int buildQuery(char type, StringBuilder sql, String clause, Class<? extends Clause> cla, List<Clause> clauses, String p1, String p2) {
-        List<Clause> filt = find(cla, clauses);
-        if (filt.isEmpty()) {
-            return 0;
-        }
-        if (clause != null) {
-            sql.append(clause);
-        }
-
-        return buildQuery(type, sql, filt, p1, p2);
-    }
-
-    private static int buildQuery(char type, StringBuilder sql, List<Clause> clauses, String p1, String p2) {
-        boolean first = true;
-        for (Clause clause : clauses) {
-            if (first) {
-                sql.append(p1);
-                sql.append(clause.query(type));
-                first = false;
-            } else {
-                sql.append(p2);
-                sql.append(clause.query(type));
-            }
+            sql.append(i == 0 ? firstSeparator : separator);
+            sql.append(render(clauses.get(i), QueryType.from(type), kind).getQuery());
         }
         return clauses.size();
     }
@@ -914,23 +927,23 @@ public class Query<T extends Query> {
     }
 
     public void setTable(String table) {
-        for (Clause clause : clauses) {
-            clause.setTable(table);
-        }
         this.table = table;
     }
 
-    public List<Clause> clearSelects() {
-        return remove(Column.class, clauses);
+    public List<CreatedClause> clearSelects() {
+        List<CreatedClause> removed = new ArrayList<>(selects);
+        selects.clear();
+        return removed;
     }
 
     public void clearSets() {
-        remove(Set.class, clauses);
+        sets.clear();
     }
 
     public void clearWhere() {
         firstWhere = true;
-        remove(Where.class, clauses);
+        whereLevel = 0;
+        wheres.clear();
     }
 
     public void tryExecuteInsert(DatabaseResultset callback) throws SQLException, Exception {
@@ -973,23 +986,21 @@ public class Query<T extends Query> {
 
     public long tryCountDistinct(String column) throws SQLException, Exception {
         long[] value = new long[1];
-        List<Clause> rem = clearSelects();
-        selectRaw("DISTINCT count(" + parseColumn(null, column, getDatabase().getMigrationType()) + ")");
+        List<CreatedClause> rem = clearSelects();
+        selectRaw("DISTINCT count(" + parseColumn(null, column, getDatabase().getDialect()) + ")");
         tryExecuteSelect((res) -> {
             if (res.next()) {
                 value[0] = res.getLong(1);
             }
         });
         clearSelects();
-        for (Clause c : rem) {
-            getClauses().add(c);
-        }
+        selects.addAll(rem);
         return value[0];
     }
 
     public long tryCount() throws SQLException, Exception {
         long[] value = new long[1];
-        List<Clause> rem = clearSelects();
+        List<CreatedClause> rem = clearSelects();
         selectRaw("count(*)");
         tryExecuteSelect((res) -> {
             if (res.next()) {
@@ -997,9 +1008,7 @@ public class Query<T extends Query> {
             }
         });
         clearSelects();
-        for (Clause c : rem) {
-            getClauses().add(c);
-        }
+        selects.addAll(rem);
         return value[0];
     }
 
@@ -1046,18 +1055,18 @@ public class Query<T extends Query> {
                 return null;
             }
             StringBuilder sb = new StringBuilder("INSERT INTO ");
-            sb.append(database.getMigrationType().carrot());
+            sb.append(database.getDialect().carrot());
             sb.append(getTable());
-            sb.append(database.getMigrationType().carrot());
+            sb.append(database.getDialect().carrot());
             sb.append("(");
             for (int i = 0; i < head.size(); i++) {
                 String col = head.get(i).getAsString();
                 if (i > 0) {
                     sb.append(" ,");
                 }
-                sb.append(database.getMigrationType().carrot());
+                sb.append(database.getDialect().carrot());
                 sb.append(col);
-                sb.append(database.getMigrationType().carrot());
+                sb.append(database.getDialect().carrot());
 
             }
             sb.append(")");

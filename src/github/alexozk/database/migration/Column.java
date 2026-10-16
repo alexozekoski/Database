@@ -5,6 +5,8 @@
  */
 package github.alexozk.database.migration;
 
+import github.alexozk.database.dialect.Dialect;
+
 import github.alexozk.database.Database;
 import github.alexozk.database.Log;
 import github.alexozk.database.model.ModelUtil;
@@ -41,7 +43,7 @@ public class Column {
 
     private String value = null;
 
-    private MigrationType types;
+    private Dialect types;
 
     private boolean modified = true;
 
@@ -99,7 +101,7 @@ public class Column {
         return colmig;
     }
 
-    public Column(String name, String type, MigrationType types, boolean exists) {
+    public Column(String name, String type, Dialect types, boolean exists) {
         this.name = name;
         this.type = type.toUpperCase();
         this.types = types;

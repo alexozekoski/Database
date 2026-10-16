@@ -54,7 +54,7 @@ public class CastFloat extends CastPrimitive {
 
     @Override
     public String dataType(Field field, Class fieldType, Database database) throws Exception {
-        return arrayOrList(field, database.getMigrationType().numeric(), database);
+        return arrayOrList(field, database.getDialect().numeric(), database);
     }
 
 }

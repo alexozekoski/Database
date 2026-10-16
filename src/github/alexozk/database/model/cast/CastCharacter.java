@@ -47,7 +47,7 @@ public class CastCharacter extends CastPrimitive {
 
     @Override
     public String dataType(Field field, Class fieldType, Database database) throws Exception {
-         return arrayOrList(field, database.getMigrationType().character(1), database);
+         return arrayOrList(field, database.getDialect().character(1), database);
     }
 
 }

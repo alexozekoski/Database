@@ -7,7 +7,7 @@ package github.alexozk.database;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import github.alexozk.database.migration.Column;
-import github.alexozk.database.migration.MigrationType;
+import github.alexozk.database.dialect.Dialect;
 import github.alexozk.database.migration.Table;
 import github.alexozk.database.model.Model;
 import java.io.File;
@@ -298,8 +298,8 @@ public class SynchronizedDatabase extends Database {
     }
 
     @Override
-    public synchronized MigrationType getMigrationType() {
-        return database.getMigrationType();
+    public synchronized Dialect getDialect() {
+        return database.getDialect();
     }
 
     @Override

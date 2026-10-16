@@ -50,7 +50,7 @@ public class CastJson extends CastPrimitive {
 
     @Override
     public String dataType(Field field, Class fieldType, Database database) throws Exception {
-        return arrayOrList(field, database.getMigrationType().text(), database);
+        return arrayOrList(field, database.getDialect().text(), database);
     }
 
 }
