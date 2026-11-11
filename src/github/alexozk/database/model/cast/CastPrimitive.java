@@ -10,7 +10,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonParser;
 import github.alexozk.database.Database;
-import github.alexozk.database.Log;
+import github.alexozk.database.LogDatabase;
 import github.alexozk.database.model.Model;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
@@ -82,7 +82,7 @@ public class CastPrimitive implements Cast {
                 JsonElement json = JsonParser.parseString((String) sqlValue);
                 return jsonArrayToFieldArray(model, stack, field, fieldType, json);
             } catch (Exception ex) {
-                Log.printWarning(ex);
+                LogDatabase.printWarning(ex);
             }
         }
         Object array = Array.newInstance(fieldType, 1);

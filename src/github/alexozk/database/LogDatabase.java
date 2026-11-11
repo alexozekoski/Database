@@ -9,9 +9,17 @@ package github.alexozk.database;
  *
  * @author alexo
  */
-public class Log {
+public class LogDatabase {
 
     public static boolean show = false;
+    
+    public static void enable(){
+        show = true;
+    }
+    
+    public static void disable(){
+        show = false;
+    }
 
     public static void printError(Exception e) {
         if (show) {

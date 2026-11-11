@@ -9,7 +9,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import github.alexozk.database.Database;
-import github.alexozk.database.Log;
+import github.alexozk.database.LogDatabase;
 import github.alexozk.database.model.Model;
 import java.io.File;
 import java.io.FileInputStream;
@@ -46,7 +46,7 @@ public abstract class SeederUtil {
             } while (rs < data.length && t > 0);
             return json(database, modelClass, JsonParser.parseString(new String(data)).getAsJsonArray(), false);
         } catch (Exception ex) {
-            Log.printError(ex);
+            LogDatabase.printError(ex);
             return false;
         }
 
@@ -66,7 +66,7 @@ public abstract class SeederUtil {
                 model.create(ob);
             }
         } catch (Exception ex) {
-            Log.printError(ex);
+            LogDatabase.printError(ex);
             return false;
         }
         return true;
@@ -86,7 +86,7 @@ public abstract class SeederUtil {
             } while (rs < data.length && t > 0);
             return json(database, models, new String(data, 0, rs), debugger);
         } catch (Exception ex) {
-            Log.printError(ex);
+            LogDatabase.printError(ex);
             return false;
         }
 
@@ -100,7 +100,7 @@ public abstract class SeederUtil {
             in.close();
             return json(database, models, new String(data), debugger);
         } catch (Exception ex) {
-            Log.printError(ex);
+            LogDatabase.printError(ex);
             return false;
         }
 
@@ -140,7 +140,7 @@ public abstract class SeederUtil {
                 }
             }
         } catch (Exception ex) {
-            Log.printError(ex);
+            LogDatabase.printError(ex);
             return false;
         }
         return true;

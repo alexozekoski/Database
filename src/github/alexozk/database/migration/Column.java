@@ -8,7 +8,7 @@ package github.alexozk.database.migration;
 import github.alexozk.database.dialect.Dialect;
 
 import github.alexozk.database.Database;
-import github.alexozk.database.Log;
+import github.alexozk.database.LogDatabase;
 import github.alexozk.database.model.ModelUtil;
 import github.alexozk.database.model.Serial;
 import github.alexozk.database.model.cast.Cast;
@@ -77,7 +77,7 @@ public class Column {
                     colmig = table.custom(coluna, t);
                 }
             } catch (Exception ex) {
-                Log.printError(ex);
+                LogDatabase.printError(ex);
             }
         }
 

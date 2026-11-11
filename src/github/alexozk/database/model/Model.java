@@ -15,7 +15,7 @@ import java.util.List;
 import github.alexozk.database.Database;
 import github.alexozk.database.DatabaseException;
 import github.alexozk.database.DatabaseTransaction;
-import github.alexozk.database.Log;
+import github.alexozk.database.LogDatabase;
 import github.alexozk.database.query.Query;
 import github.alexozk.database.query.QueryModel;
 import github.alexozk.database.validation.Validator;
@@ -69,7 +69,7 @@ public class Model<T extends Model<T>> {
         try {
             return tryNewInstance(classe, database);
         } catch (Exception e) {
-            Log.printError(e);
+            LogDatabase.printError(e);
         }
         return null;
     }
@@ -227,10 +227,13 @@ public class Model<T extends Model<T>> {
         try {
             Field[] fields = ModelUtil.getAllColumns(getClass());
             for (Field field : fields) {
+                if (!field.getDeclaringClass().isInstance(model)) {
+                    continue;
+                }
                 field.set(this, field.get(model));
             }
         } catch (Exception e) {
-            Log.printError(e);
+            LogDatabase.printError(e);
         }
     }
 
@@ -249,7 +252,7 @@ public class Model<T extends Model<T>> {
                 }
             }
         } catch (Exception e) {
-            Log.printError(e);
+            LogDatabase.printError(e);
             return null;
         }
 
@@ -310,7 +313,7 @@ public class Model<T extends Model<T>> {
             ModelUtil.insert(this, columns);
             return true;
         } catch (Exception ex) {
-            Log.printError(ex);
+            LogDatabase.printError(ex);
             return false;
         }
     }
@@ -339,7 +342,7 @@ public class Model<T extends Model<T>> {
         try {
             return tryUpdate(columns);
         } catch (Exception ex) {
-            Log.printError(ex);
+            LogDatabase.printError(ex);
         }
         return false;
     }
@@ -356,7 +359,7 @@ public class Model<T extends Model<T>> {
         try {
             return tryDelete();
         } catch (Exception e) {
-            Log.printError(e);
+            LogDatabase.printError(e);
         }
         return false;
     }
@@ -450,7 +453,7 @@ public class Model<T extends Model<T>> {
         List<ModelListener> actions = getListeners();
         if (actions != null) {
             actions.forEach((action) -> {
-                action.afterDelete(this);
+                action.afterRefresh(this, columns);
             });
         }
     }
@@ -460,7 +463,7 @@ public class Model<T extends Model<T>> {
         List<ModelListener> actions = getListeners();
         if (actions != null) {
             actions.forEach((action) -> {
-                action.afterDelete(this);
+                action.afterRefresh(this, columns);
             });
         }
     }
@@ -496,9 +499,8 @@ public class Model<T extends Model<T>> {
     public void afterDelete() {
 
     }
-    
-    
-     public void onRefresh(String[] columns) {
+
+    public void onRefresh(String[] columns) {
 
     }
 
@@ -578,7 +580,7 @@ public class Model<T extends Model<T>> {
             ModelUtil.refresh(this, columns);
             return true;
         } catch (Exception ex) {
-            Log.printError(ex);
+            LogDatabase.printError(ex);
             return false;
         }
     }

@@ -9,7 +9,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonPrimitive;
 import github.alexozk.database.Database;
-import github.alexozk.database.Log;
+import github.alexozk.database.LogDatabase;
 import github.alexozk.database.model.Column;
 import github.alexozk.database.model.Model;
 import java.lang.reflect.Array;
@@ -55,7 +55,7 @@ public class CastByte extends CastPrimitive {
         try {
             return value.getAsByte();
         } catch (Exception ex) {
-            Log.printWarning(ex);
+            LogDatabase.printWarning(ex);
             return null;
         }
     }

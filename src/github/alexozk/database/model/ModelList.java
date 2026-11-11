@@ -9,7 +9,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import github.alexozk.database.Log;
+import github.alexozk.database.LogDatabase;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -98,7 +98,7 @@ public class ModelList<T extends Model<T>> extends ArrayList<T> {
             }
             return (A[]) a;
         } catch (Exception ex) {
-            Log.printError(ex);
+            LogDatabase.printError(ex);
         }
         return null;
     }
@@ -112,7 +112,7 @@ public class ModelList<T extends Model<T>> extends ArrayList<T> {
             }
             return list;
         } catch (Exception ex) {
-            Log.printError(ex);
+            LogDatabase.printError(ex);
         }
         return null;
     }

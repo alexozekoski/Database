@@ -5,7 +5,7 @@
  */
 package github.alexozk.database.validation;
 
-import github.alexozk.database.Log;
+import github.alexozk.database.LogDatabase;
 import github.alexozk.database.model.Column;
 import github.alexozk.database.model.Model;
 import github.alexozk.database.validation.primitive.ValidationCustom;
@@ -26,7 +26,7 @@ public class CustomValidation implements Validation{
                     Validation validation = val.getDeclaredConstructor().newInstance();
                     validation.valid(model, field, column, value, validator);
                 } catch (Exception ex) {
-                   Log.printError(ex);
+                   LogDatabase.printError(ex);
                 } 
             }
         }

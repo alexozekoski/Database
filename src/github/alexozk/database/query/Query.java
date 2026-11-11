@@ -10,7 +10,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import github.alexozk.database.Database;
 import github.alexozk.database.DatabaseResultset;
-import github.alexozk.database.Log;
+import github.alexozk.database.LogDatabase;
 import github.alexozk.database.dialect.Dialect;
 import github.alexozk.database.model.Model;
 import github.alexozk.database.model.ModelUtil;
@@ -970,7 +970,7 @@ public class Query<T extends Query> {
         try {
             return tryExecuteDelete();
         } catch (Exception ex) {
-            Log.printError(ex);
+            LogDatabase.printError(ex);
             return -1;
         }
     }
@@ -979,7 +979,7 @@ public class Query<T extends Query> {
         try {
             return tryExecuteUpdate();
         } catch (Exception ex) {
-            Log.printError(ex);
+            LogDatabase.printError(ex);
             return -1;
         }
     }
@@ -1016,7 +1016,7 @@ public class Query<T extends Query> {
         try {
             return tryCountDistinct(column);
         } catch (Exception ex) {
-            Log.printError(ex);
+            LogDatabase.printError(ex);
         }
         return -1;
     }
@@ -1025,7 +1025,7 @@ public class Query<T extends Query> {
         try {
             return tryCount();
         } catch (Exception ex) {
-            Log.printError(ex);
+            LogDatabase.printError(ex);
         }
         return -1;
     }

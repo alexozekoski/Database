@@ -8,7 +8,7 @@ package github.alexozk.database.model.cast;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonPrimitive;
-import github.alexozk.database.Log;
+import github.alexozk.database.LogDatabase;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.text.ParseException;
@@ -78,7 +78,7 @@ public class CastUtil {
             } catch (ParseException ignored) {
             }
         }
-        Log.printWarning(new Exception("Failed parse data " + jsonDate));
+        LogDatabase.printWarning(new Exception("Failed parse data " + jsonDate));
         return null;
     }
 

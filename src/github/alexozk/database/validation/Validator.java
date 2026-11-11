@@ -8,7 +8,7 @@ package github.alexozk.database.validation;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import github.alexozk.database.Log;
+import github.alexozk.database.LogDatabase;
 import github.alexozk.database.model.Column;
 import github.alexozk.database.model.Model;
 import github.alexozk.database.model.ModelSerial;
@@ -139,7 +139,7 @@ public class Validator {
             }
             model.onValidateColumn(getColumn(), value, this);
         } catch (Exception ex) {
-            Log.printError(ex);
+            LogDatabase.printError(ex);
         }
         return invalids.isEmpty();
     }

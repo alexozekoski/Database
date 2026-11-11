@@ -275,7 +275,7 @@ public abstract class Database {
         try {
             return tryExecuteAsJson(query);
         } catch (SQLException ex) {
-            Log.printError(ex);
+            LogDatabase.printError(ex);
             return null;
         }
     }
@@ -297,7 +297,7 @@ public abstract class Database {
         try {
             return con != null && !con.isClosed();
         } catch (SQLException ex) {
-            Log.printError(ex);
+            LogDatabase.printError(ex);
             return false;
         }
     }
@@ -412,7 +412,7 @@ public abstract class Database {
             tryConnectOrCreateDatabase();
             return true;
         } catch (Exception ex) {
-            Log.printError(ex);
+            LogDatabase.printError(ex);
         }
         return false;
     }
@@ -427,7 +427,7 @@ public abstract class Database {
         try {
             tryConnect(readOnly);
         } catch (SQLException e) {
-            Log.printError(e);
+            LogDatabase.printError(e);
             return false;
         }
         return true;
@@ -444,7 +444,7 @@ public abstract class Database {
         try {
             tryConnect(readOnly, props);
         } catch (SQLException e) {
-            Log.printError(e);
+            LogDatabase.printError(e);
             return false;
         }
         return true;
@@ -460,7 +460,7 @@ public abstract class Database {
         try {
             tryConnect(props);
         } catch (SQLException e) {
-            Log.printError(e);
+            LogDatabase.printError(e);
             return false;
         }
         return true;
@@ -475,7 +475,7 @@ public abstract class Database {
         try {
             tryConnect();
         } catch (SQLException e) {
-            Log.printError(e);
+            LogDatabase.printError(e);
             return false;
         }
         return true;
@@ -501,7 +501,7 @@ public abstract class Database {
         try {
             tryDisconnect();
         } catch (SQLException ex) {
-            Log.printError(ex);
+            LogDatabase.printError(ex);
             return false;
         }
         return true;
@@ -516,7 +516,7 @@ public abstract class Database {
         try {
             return tryExecuteAsJsonObject(query);
         } catch (Exception e) {
-            Log.printError(e);
+            LogDatabase.printError(e);
             return null;
         }
     }
@@ -587,7 +587,7 @@ public abstract class Database {
         try {
             return tryExecuteAsJsonObject(query, objects);
         } catch (Exception ex) {
-            Log.printError(ex);
+            LogDatabase.printError(ex);
             return null;
         }
 
@@ -652,7 +652,7 @@ public abstract class Database {
             if (errorCallback != null) {
                 errorCallback.run(ex);
             } else {
-                Log.printError(ex);
+                LogDatabase.printError(ex);
             }
         }
     }
@@ -786,7 +786,7 @@ public abstract class Database {
         try {
             return tryExecuteReturnigGeneratedKeysAsJson(query);
         } catch (Exception e) {
-            Log.printError(e);
+            LogDatabase.printError(e);
             return null;
         }
     }
@@ -841,7 +841,7 @@ public abstract class Database {
         try {
             return tryExecuteReturnigGeneratedKeysAsJson(query, param);
         } catch (Exception e) {
-            Log.printError(e);
+            LogDatabase.printError(e);
             return null;
         }
     }
@@ -979,7 +979,7 @@ public abstract class Database {
         try {
             return tryExecuteUpdate(query, param);
         } catch (Exception e) {
-            Log.printError(e);
+            LogDatabase.printError(e);
             return -1;
         }
     }
@@ -988,7 +988,7 @@ public abstract class Database {
         try {
             return tryExecuteUpdate(query);
         } catch (Exception e) {
-            Log.printError(e);
+            LogDatabase.printError(e);
             return -1;
         }
     }
@@ -1019,7 +1019,7 @@ public abstract class Database {
         try {
             return tryExecuteVoid(query);
         } catch (Exception ex) {
-            Log.printError(ex);
+            LogDatabase.printError(ex);
             return false;
         }
     }
@@ -1057,7 +1057,7 @@ public abstract class Database {
         try {
             return tryExecuteVoid(query, param);
         } catch (Exception ex) {
-            Log.printError(ex);
+            LogDatabase.printError(ex);
             return false;
         }
     }
@@ -1282,7 +1282,7 @@ public abstract class Database {
         try {
             trySetReadOnly(readOnly);
         } catch (SQLException e) {
-            Log.printError(e);
+            LogDatabase.printError(e);
         }
     }
 
@@ -1361,7 +1361,7 @@ public abstract class Database {
         try {
             return tryExecuteFile(sql);
         } catch (Exception ex) {
-            Log.printError(ex);
+            LogDatabase.printError(ex);
             return false;
         }
     }
@@ -1374,7 +1374,7 @@ public abstract class Database {
         try {
             return tryExecuteFile(dir);
         } catch (Exception ex) {
-            Log.printError(ex);
+            LogDatabase.printError(ex);
             return false;
         }
     }
@@ -1392,7 +1392,7 @@ public abstract class Database {
         try {
             return tryCreateDatabase(database);
         } catch (Exception e) {
-            Log.printError(e);
+            LogDatabase.printError(e);
         }
         return false;
     }
@@ -1406,7 +1406,7 @@ public abstract class Database {
         try {
             return tryDropDatabase(database);
         } catch (Exception e) {
-            Log.printError(e);
+            LogDatabase.printError(e);
         }
         return false;
     }
@@ -1419,7 +1419,7 @@ public abstract class Database {
         try {
             return tryDropDatabase();
         } catch (Exception e) {
-            Log.printError(e);
+            LogDatabase.printError(e);
         }
         return false;
     }

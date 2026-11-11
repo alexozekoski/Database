@@ -14,7 +14,7 @@ import github.alexozk.database.model.ModelList;
 import github.alexozk.database.model.ModelUtil;
 import java.lang.reflect.Field;
 import java.util.List;
-import github.alexozk.database.Log;
+import github.alexozk.database.LogDatabase;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Locale;
@@ -43,7 +43,7 @@ public class QueryModel<M extends Model<M>> extends Query<QueryModel<M>> {
         try {
             return tryGet(new ModelList(classe));
         } catch (Exception ex) {
-            Log.printError(ex);
+            LogDatabase.printError(ex);
         }
         return null;
     }
@@ -52,7 +52,7 @@ public class QueryModel<M extends Model<M>> extends Query<QueryModel<M>> {
         try {
             return tryGet(list);
         } catch (Exception ex) {
-            Log.printError(ex);
+            LogDatabase.printError(ex);
         }
         return null;
     }
@@ -122,7 +122,7 @@ public class QueryModel<M extends Model<M>> extends Query<QueryModel<M>> {
         try {
             applyJsonQuery(json);
         } catch (Exception e) {
-            Log.printError(e);
+            LogDatabase.printError(e);
         }
         return this;
     }
@@ -318,7 +318,7 @@ public class QueryModel<M extends Model<M>> extends Query<QueryModel<M>> {
                 }
             }
         } catch (Exception e) {
-            Log.printError(e);
+            LogDatabase.printError(e);
         }
     }
 
@@ -520,7 +520,7 @@ public class QueryModel<M extends Model<M>> extends Query<QueryModel<M>> {
         try {
             applyWhereJson(json);
         } catch (Exception e) {
-            Log.printError(e);
+            LogDatabase.printError(e);
         }
         return this;
     }

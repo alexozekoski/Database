@@ -12,7 +12,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import github.alexozk.database.Database;
-import github.alexozk.database.Log;
+import github.alexozk.database.LogDatabase;
 import github.alexozk.database.SQLite;
 import github.alexozk.database.model.cast.Cast;
 import github.alexozk.database.query.CreatedClause;
@@ -123,7 +123,7 @@ public class ModelUtil {
                         try {
                             setField(model, field, value.substring(0, size));
                         } catch (Exception ex) {
-                            Log.printError(ex);
+                            LogDatabase.printError(ex);
                         }
                     }
                 }
@@ -283,7 +283,7 @@ public class ModelUtil {
                 }
             }
         } catch (Exception ex) {
-            Log.printError(ex);
+            LogDatabase.printError(ex);
         }
         return null;
     }
@@ -340,7 +340,7 @@ public class ModelUtil {
                 }
             }
         } catch (Exception ex) {
-            Log.printError(ex);
+            LogDatabase.printError(ex);
         }
         return null;
     }
@@ -367,7 +367,7 @@ public class ModelUtil {
                 }
             }
         } catch (Exception ex) {
-            Log.printError(ex);
+            LogDatabase.printError(ex);
         }
         return null;
     }
@@ -413,7 +413,7 @@ public class ModelUtil {
                     }
                 }
             } catch (Exception e) {
-                Log.printError(e);
+                LogDatabase.printError(e);
             }
         }
 
@@ -608,7 +608,7 @@ public class ModelUtil {
                 }
             }
         } catch (Exception ex) {
-            Log.printError(ex);
+            LogDatabase.printError(ex);
         }
     }
 
@@ -650,7 +650,7 @@ public class ModelUtil {
                     hash += field.hashCode();
                 }
             } catch (Exception ex) {
-                Log.printError(ex);
+                LogDatabase.printError(ex);
             }
         }
         return hash;
@@ -660,7 +660,7 @@ public class ModelUtil {
         try {
             return field.get(model);
         } catch (Exception ex) {
-            Log.printError(ex);
+            LogDatabase.printError(ex);
         }
         return null;
     }
